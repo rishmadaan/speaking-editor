@@ -1,6 +1,6 @@
 # 0001: Walking skeleton, the first playable slice
 
-Status: building
+Status: building (automated acceptance ALL PASS 7/7 on 2026-07-12; manual checklist pending)
 Date: 2026-07-12
 Depends on: spike 1 (Edge synthesis in Obsidian, PASS 6/6), spike 2 (CM6
 decorations/seek/remap, PASS 8/8). This spec wires the two proven halves

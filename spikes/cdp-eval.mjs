@@ -15,6 +15,10 @@ const result = await new Promise((res, rej) => {
     const msg = JSON.parse(m.toString());
     if (msg.id === 1) res(msg.result);
   });
+  // rAF-driven code under test needs an unoccluded window: Chromium throttles
+  // or pauses requestAnimationFrame in occluded windows, which starves any
+  // frame-synced loop and skews timing measurements.
+  ws.send(JSON.stringify({ id: 0, method: "Page.bringToFront" }));
   ws.send(JSON.stringify({
     id: 1,
     method: "Runtime.evaluate",

@@ -46,11 +46,18 @@ interface Check { name: string; pass: boolean; detail: string }
 export async function runAcceptance(app: App): Promise<void> {
   const lines: string[] = [`# Skeleton acceptance report`, ``];
   const checks: Check[] = [];
+  const write = () => app.vault.adapter.write(REPORT, lines.join("\n") + "\n");
+  // write after every check so a mid-run hang or abort never loses the trail
   const check = (name: string, pass: boolean, detail: string) => {
     checks.push({ name, pass, detail });
     lines.push(`- ${pass ? "PASS" : "FAIL"}: ${name}. ${detail}`);
+    void write();
   };
-  const write = () => app.vault.adapter.write(REPORT, lines.join("\n") + "\n");
+  // rAF pauses entirely in a hidden window; any rAF-driven wait would hang
+  // forever if the window is occluded mid-run. Timers still fire (throttled),
+  // so every rAF-based wait races against a timer escape, and a run that loses
+  // its window aborts with a verdict instead of hanging silently.
+  const hiddenMidRun = () => document.visibilityState === "hidden";
 
   let session: ReadingSession | null = null;
   try {
@@ -58,6 +65,16 @@ export async function runAcceptance(app: App): Promise<void> {
       `Environment: platform=${process.platform}, electron=${process.versions?.electron ?? "none"}, chrome=${process.versions?.chrome ?? "none"}`,
       ``
     );
+
+    // The checks measure a rAF-driven loop; Chromium pauses rAF entirely in a
+    // hidden window, which would produce misleading FAILs. Refuse to run blind.
+    window.focus();
+    await sleep(300);
+    if (document.visibilityState === "hidden") {
+      lines.splice(2, 0, `RESULT: BLOCKED`, ``, `The Obsidian window is hidden (occluded or minimized), so`, `requestAnimationFrame is paused and UI-sync checks cannot run.`, `Bring the test-vault window to the front and rerun.`);
+      await write();
+      return;
+    }
 
     // Open the fixture note in live preview and reach its EditorView
     await app.vault.adapter.write(NOTE, FIXTURE);
@@ -111,6 +128,10 @@ export async function runAcceptance(app: App): Promise<void> {
     // by a frame; this observer confirms live advances land and paint monotonically.
     const advances: { t: number; word: number }[] = [];
     await new Promise<void>((done) => {
+      let settled = false;
+      const finish = () => { if (!settled) { settled = true; done(); } };
+      // timer escape: fires even if the window goes hidden and rAF stops
+      const escape = setTimeout(finish, 8000);
       let last = field().word;
       const t0 = performance.now();
       const obs = () => {
@@ -120,13 +141,19 @@ export async function runAcceptance(app: App): Promise<void> {
           last = w;
         }
         if (advances.length >= 10 || performance.now() - t0 > 6000 || session!.state !== "playing") {
-          done();
+          clearTimeout(escape);
+          finish();
           return;
         }
         requestAnimationFrame(obs);
       };
       requestAnimationFrame(obs);
     });
+    if (hiddenMidRun()) {
+      lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the checks; rAF-driven measurements`, `are invalid from check 3 on. Keep the window visible and rerun.`);
+      await write();
+      return;
+    }
     let monotonic = true;
     let paintable = true;
     for (let i = 1; i < advances.length; i++) if (advances[i].word < advances[i - 1].word) monotonic = false;

@@ -18793,16 +18793,20 @@ async function waitUntil(pred, timeoutMs, step = 50) {
   return pred();
 }
 async function runAcceptance(app) {
-  let lines = ["# Skeleton acceptance report", ""], checks = [], check = (name, pass, detail) => {
-    checks.push({ name, pass, detail }), lines.push(`- ${pass ? "PASS" : "FAIL"}: ${name}. ${detail}`);
-  }, write = () => app.vault.adapter.write(REPORT, lines.join(`
+  let lines = ["# Skeleton acceptance report", ""], checks = [], write = () => app.vault.adapter.write(REPORT, lines.join(`
 `) + `
-`), session = null;
+`), check = (name, pass, detail) => {
+    checks.push({ name, pass, detail }), lines.push(`- ${pass ? "PASS" : "FAIL"}: ${name}. ${detail}`), write();
+  }, hiddenMidRun = () => document.visibilityState === "hidden", session = null;
   try {
-    lines.push(
+    if (lines.push(
       `Environment: platform=${process.platform}, electron=${process.versions?.electron ?? "none"}, chrome=${process.versions?.chrome ?? "none"}`,
       ""
-    ), await app.vault.adapter.write(NOTE, FIXTURE);
+    ), window.focus(), await sleep(300), document.visibilityState === "hidden") {
+      lines.splice(2, 0, "RESULT: BLOCKED", "", "The Obsidian window is hidden (occluded or minimized), so", "requestAnimationFrame is paused and UI-sync checks cannot run.", "Bring the test-vault window to the front and rerun."), await write();
+      return;
+    }
+    await app.vault.adapter.write(NOTE, FIXTURE);
     let file = app.vault.getAbstractFileByPath(NOTE) ?? app.vault.getFiles().find((f) => f.path === NOTE), leaf = app.workspace.getLeaf(!0);
     await leaf.openFile(file);
     let mdView = leaf.view;
@@ -18836,17 +18840,22 @@ async function runAcceptance(app) {
       cleanFails.length ? cleanFails.slice(0, 5).join("; ") : `${sample2.length} words, every painted slice === word text`
     );
     let advances = [];
-    await new Promise((done) => {
-      let last = field().word, t0 = performance.now(), obs = () => {
+    if (await new Promise((done) => {
+      let settled = !1, finish = () => {
+        settled || (settled = !0, done());
+      }, escape = setTimeout(finish, 8e3), last = field().word, t0 = performance.now(), obs = () => {
         let w = field().word;
         if (w !== last && w >= 0 && (advances.push({ t: performance.now(), word: w }), last = w), advances.length >= 10 || performance.now() - t0 > 6e3 || session.state !== "playing") {
-          done();
+          clearTimeout(escape), finish();
           return;
         }
         requestAnimationFrame(obs);
       };
       requestAnimationFrame(obs);
-    });
+    }), hiddenMidRun()) {
+      lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the checks; rAF-driven measurements", "are invalid from check 3 on. Keep the window visible and rerun."), await write();
+      return;
+    }
     let monotonic = !0, paintable = !0;
     for (let i = 1; i < advances.length; i++) advances[i].word < advances[i - 1].word && (monotonic = !1);
     for (let a of advances) {
