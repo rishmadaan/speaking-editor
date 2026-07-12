@@ -1,6 +1,6 @@
 # 0004: The floating pill player
 
-Status: building
+Status: built (185 tests green; live 15-check run armed; feel pass pending)
 Date: 2026-07-12
 Depends on: 0001-0003. Rishabh picked Option A from the player UI mockups
 (outputs/speaking-editor-player-ui-mockups-2026-07-12.html in the mycroft
