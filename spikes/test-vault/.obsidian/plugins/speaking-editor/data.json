@@ -6,10 +6,11 @@
   "speed": 1.5,
   "listeningMode": true,
   "cacheSizeMb": 200,
+  "seekHintsShown": 3,
   "positions": {
     "Skeleton Note.md": {
       "wordIndex": 12,
-      "ts": 1783872104777
+      "ts": 1783874066661
     }
   }
 }

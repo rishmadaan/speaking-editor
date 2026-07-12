@@ -16,6 +16,10 @@ import { Engine, EngineCallbacks, AudioLike } from "../playback/engine";
 import { buildWordEntries, WordEntry } from "./word-runs";
 import { HighlightSurface, CmSurface } from "./highlight-surface";
 
+// How long the final word's highlight lingers after a natural end before the
+// surface clears, so the ending breathes instead of snapping (spec 0010 point 2).
+const ENDED_LINGER_MS = 600;
+
 // "preparing" is a shell-derived state (the vendored engine never emits it): a
 // playback request has been made (start / resume with an unloaded chunk / seek to
 // an unloaded chunk) but the first audio has not started yet. The session enters
@@ -78,6 +82,16 @@ export class ReadingSession {
   // reading-mode acceptance checks read these; there is no sync field to inspect).
   private _currentWord = -1;
   private _currentSentence = -1;
+
+  // Chunk timings harvested shell-side, keyed by chunk index (the vendored Engine
+  // owns loaded chunks and must not be touched, so we harvest every ChunkAudio in
+  // the requestChunk resolution path). Only ms-unit timings carry real durations
+  // shell-side; fraction-unit timings need the audio duration the engine holds, so
+  // they are skipped. spanMs is the last word's end minus the first word's start.
+  private chunkTimings = new Map<number, { spanMs: number; wordCount: number }>();
+  // The pending natural-end linger, if any: a delayed surface.clear() that a new
+  // request (enterPreparing) or teardown cancels.
+  private endedLingerTimer: ReturnType<typeof setTimeout> | null = null;
 
   private rafId: number | null = null;
   private _state: SessionState = "idle";
@@ -218,6 +232,24 @@ export class ReadingSession {
     return this._state;
   }
 
+  // The remaining-time estimate the pill renders (spec 0010 point 1). msPerWord is
+  // the word-count-weighted MEAN across every harvested (ms-unit) chunk; wordsLeft
+  // is the model words remaining after the current word. Null when no timings have
+  // been harvested yet, so the pill shows nothing rather than a wrong number. The
+  // pure remainingLabel() divides by the current speed; the session does not.
+  remainingEstimate(): { msPerWord: number; wordsLeft: number } | null {
+    let totalSpan = 0;
+    let totalWords = 0;
+    for (const t of this.chunkTimings.values()) {
+      totalSpan += t.spanMs;
+      totalWords += t.wordCount;
+    }
+    if (totalWords <= 0) return null;
+    const msPerWord = totalSpan / totalWords;
+    const wordsLeft = Math.max(this.model.words.length - (this._currentWord + 1), 0);
+    return { msPerWord, wordsLeft };
+  }
+
   // The word/sentence currently painted. In reading mode there is no sync field
   // to read, so the acceptance checks and the reconfigure path read these.
   get currentWord(): number {
@@ -254,7 +286,11 @@ export class ReadingSession {
     this.synthesis
       .request(this.chunks[i], priority)
       .then((a) => {
-        if (!this.disposed) this.engine.receiveChunk(i, a);
+        if (this.disposed) return;
+        // Harvest timings shell-side before handing the audio to the vendored
+        // engine, so remainingEstimate() has data the moment a chunk lands.
+        this.harvestTimings(i, a);
+        this.engine.receiveChunk(i, a);
       })
       .catch((err) => {
         // aborts on teardown reject here too; only surface a real failure while active
@@ -264,6 +300,19 @@ export class ReadingSession {
         this.stopLoop();
         this.onStateCb("error", err instanceof Error ? err.message : String(err));
       });
+  }
+
+  // Record a chunk's ms-per-word span from its harvested audio. Only ms-unit
+  // timings carry real durations shell-side; fraction-unit timings resolve to ms
+  // inside the engine (from the audio duration), so they are skipped here. Keyed by
+  // chunk index so a re-request overwrites rather than double-counts.
+  private harvestTimings(index: number, audio: ChunkAudio) {
+    const t = audio.timings;
+    if (t.unit !== "ms") return;
+    const words = t.words;
+    if (words.length === 0) return;
+    const span = words[words.length - 1].end - words[0].start;
+    this.chunkTimings.set(index, { spanMs: Math.max(span, 0), wordCount: words.length });
   }
 
   private onPosition(word: number, sentence: number) {
@@ -283,8 +332,24 @@ export class ReadingSession {
     this._state = s;
     if (s === "playing") this.startLoop();
     else this.stopLoop(); // paused or ended
-    if (s === "ended") this.active = false;
+    if (s === "ended") {
+      this.active = false;
+      // Let the final word's highlight breathe: clear the surface after a linger
+      // instead of snapping. Cancelable if a new request or teardown arrives.
+      this.cancelEndedLinger();
+      this.endedLingerTimer = setTimeout(() => {
+        this.endedLingerTimer = null;
+        if (!this.disposed) this.surface.clear();
+      }, ENDED_LINGER_MS);
+    }
     this.onStateCb(s);
+  }
+
+  private cancelEndedLinger() {
+    if (this.endedLingerTimer != null) {
+      clearTimeout(this.endedLingerTimer);
+      this.endedLingerTimer = null;
+    }
   }
 
   // ─── Internals ────────────────────────────────────────────────────────────────
@@ -294,6 +359,9 @@ export class ReadingSession {
   // "playing" when audio actually starts, overwriting this; a synchronous start
   // (already-loaded chunk) overwrites it within the same call, so no flicker.
   private enterPreparing() {
+    // A fresh request supersedes a pending natural-end linger (e.g. replay after
+    // the note ended), so the surface is not cleared out from under the new play.
+    this.cancelEndedLinger();
     this.active = true;
     this._state = "preparing";
     this.onStateCb("preparing");
@@ -317,6 +385,7 @@ export class ReadingSession {
 
   private teardown() {
     this.active = false;
+    this.cancelEndedLinger(); // no delayed clear after an immediate teardown clear
     this.stopLoop();
     this.engine.stop(); // pauses every audio element and revokes its blob URL
     this.synthesis.abortAll();

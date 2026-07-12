@@ -52,6 +52,14 @@ export interface PlayerPillOptions {
 // Restore delay after the last user edit before the pill fades back in.
 const FADE_RESTORE_MS = 1500;
 
+// The leaving fade fallback: if the opacity transitionend never fires (occluded
+// window, no compositor), remove the pill after this instead (spec 0010 point 2).
+const LEAVING_FALLBACK_MS = 300;
+
+// The edited badge's hover explanation (spec 0010 point 3).
+const EDITED_TITLE =
+  "The note changed while reading; the voice is finishing the text it started. Stop and play again to re-read.";
+
 // Text fallbacks used only when no icon renderer is supplied (i.e. in tests).
 const FALLBACK_GLYPH: Record<string, string> = {
   play: "▶", // right-pointing triangle
@@ -71,9 +79,16 @@ export class PlayerPill {
   private voiceBtn!: HTMLButtonElement;
   private earBtn!: HTMLButtonElement;
   private stopBtn!: HTMLButtonElement;
+  private remainingEl!: HTMLSpanElement;
+  private editedEl!: HTMLSpanElement;
 
   private renderIcon?: (el: HTMLElement, icon: string) => void;
   private fadeTimer: ReturnType<typeof setTimeout> | null = null;
+  private leavingTimer: ReturnType<typeof setTimeout> | null = null;
+  private leaving = false;
+  // The one-shot completion of an in-flight leaving fade, so transitionend, the
+  // timer fallback, and an early destroy() all funnel through it exactly once.
+  private leavingDone: (() => void) | null = null;
   private destroyed = false;
 
   constructor(private cb: PlayerPillCallbacks, opts: PlayerPillOptions = {}) {
@@ -97,6 +112,8 @@ export class PlayerPill {
     this.setControlIcon(this.stopBtn, "x");
     this.setSpeed(1.0);
     this.setVoiceLabel("");
+    this.setRemaining(""); // hidden until an estimate exists
+    this.setEdited(false); // hidden until the note is edited mid-read
     this.setListening(true);
   }
 
@@ -144,6 +161,57 @@ export class PlayerPill {
     this.earBtn.classList.toggle("se-pill-ear-off", !on);
   }
 
+  // The dim remaining-time label (spec 0010 point 1). Hidden entirely when empty
+  // (no estimate yet), so the pill shows nothing rather than a wrong number.
+  setRemaining(label: string): void {
+    this.remainingEl.textContent = label;
+    this.remainingEl.classList.toggle("se-pill-remaining-hidden", label.length === 0);
+  }
+
+  // The dim "edited" degradation badge (spec 0010 point 3). Its title explains that
+  // the voice finishes the text it started; a fresh session starts it hidden.
+  setEdited(on: boolean): void {
+    this.editedEl.classList.toggle("se-pill-edited-hidden", !on);
+  }
+
+  // Graceful leaving (spec 0010 point 2): fade the pill out (opacity only, via the
+  // se-pill-leaving class) then remove it, instead of popping. The host calls this
+  // on the ended/stop path and clears its reference in the callback. Removal fires
+  // on the opacity transitionend, with a timer fallback for occluded windows; both
+  // paths run the removal exactly once. Idempotent while already leaving.
+  fadeOutAndRemove(onRemoved?: () => void): void {
+    if (this.destroyed) {
+      onRemoved?.();
+      return;
+    }
+    if (this.leaving) return;
+    this.leaving = true;
+    // A pending typing-restore timer would fight the fade; cancel it.
+    if (this.fadeTimer != null) {
+      clearTimeout(this.fadeTimer);
+      this.fadeTimer = null;
+    }
+    const done = () => {
+      if (this.destroyed) return;
+      this.destroyed = true;
+      this.leavingDone = null;
+      if (this.leavingTimer != null) {
+        clearTimeout(this.leavingTimer);
+        this.leavingTimer = null;
+      }
+      this.root.removeEventListener("transitionend", onEnd);
+      this.root.remove();
+      onRemoved?.();
+    };
+    const onEnd = (e: Event) => {
+      if ((e as TransitionEvent).propertyName === "opacity") done();
+    };
+    this.leavingDone = done;
+    this.root.addEventListener("transitionend", onEnd);
+    this.root.classList.add("se-pill-leaving"); // triggers the 200ms opacity fade
+    this.leavingTimer = setTimeout(done, LEAVING_FALLBACK_MS);
+  }
+
   // A user edit landed: fade now, and arm the restore for a lull.
   notifyTyping(): void {
     if (this.destroyed) return;
@@ -156,10 +224,20 @@ export class PlayerPill {
   }
 
   destroy(): void {
-    this.destroyed = true;
     if (this.fadeTimer != null) {
       clearTimeout(this.fadeTimer);
       this.fadeTimer = null;
+    }
+    // Complete an in-flight leaving fade through its one-shot path (removes the
+    // element and fires its onRemoved exactly once), rather than racing it.
+    if (this.leavingDone) {
+      this.leavingDone();
+      return;
+    }
+    this.destroyed = true;
+    if (this.leavingTimer != null) {
+      clearTimeout(this.leavingTimer);
+      this.leavingTimer = null;
     }
     this.root.remove();
   }
@@ -176,11 +254,25 @@ export class PlayerPill {
     this.voiceBtn = this.makeControl("se-pill-voice", "Change voice");
     this.voiceBtn.addEventListener("click", (e) => this.cb.onVoice(e));
 
+    // Dim, non-interactive status slots between the voice label and the ear: the
+    // remaining-time estimate and the "edited" degradation badge (spec 0010).
+    this.remainingEl = this.makeSpan("se-pill-remaining");
+    this.editedEl = this.makeSpan("se-pill-edited");
+    this.editedEl.textContent = "edited";
+    this.editedEl.setAttribute("title", EDITED_TITLE);
+
     this.earBtn = this.makeControl("se-pill-ear", "Listening mode");
     this.earBtn.addEventListener("click", () => this.cb.onListening());
 
     this.stopBtn = this.makeControl("se-pill-stop", "Stop reading");
     this.stopBtn.addEventListener("click", () => this.cb.onStop());
+  }
+
+  private makeSpan(cls: string): HTMLSpanElement {
+    const s = document.createElement("span");
+    s.className = cls;
+    this.root.appendChild(s);
+    return s;
   }
 
   private makeControl(cls: string, aria: string): HTMLButtonElement {

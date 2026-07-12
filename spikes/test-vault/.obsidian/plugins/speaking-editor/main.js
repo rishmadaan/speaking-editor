@@ -18764,7 +18764,7 @@ var CmSurface = class {
 };
 
 // src/shell/session.ts
-var ReadingSession = class {
+var ENDED_LINGER_MS = 600, ReadingSession = class {
   model;
   chunks;
   entries;
@@ -18780,6 +18780,15 @@ var ReadingSession = class {
   // reading-mode acceptance checks read these; there is no sync field to inspect).
   _currentWord = -1;
   _currentSentence = -1;
+  // Chunk timings harvested shell-side, keyed by chunk index (the vendored Engine
+  // owns loaded chunks and must not be touched, so we harvest every ChunkAudio in
+  // the requestChunk resolution path). Only ms-unit timings carry real durations
+  // shell-side; fraction-unit timings need the audio duration the engine holds, so
+  // they are skipped. spanMs is the last word's end minus the first word's start.
+  chunkTimings = /* @__PURE__ */ new Map();
+  // The pending natural-end linger, if any: a delayed surface.clear() that a new
+  // request (enterPreparing) or teardown cancels.
+  endedLingerTimer = null;
   rafId = null;
   _state = "idle";
   active = !1;
@@ -18860,6 +18869,19 @@ var ReadingSession = class {
   get state() {
     return this._state;
   }
+  // The remaining-time estimate the pill renders (spec 0010 point 1). msPerWord is
+  // the word-count-weighted MEAN across every harvested (ms-unit) chunk; wordsLeft
+  // is the model words remaining after the current word. Null when no timings have
+  // been harvested yet, so the pill shows nothing rather than a wrong number. The
+  // pure remainingLabel() divides by the current speed; the session does not.
+  remainingEstimate() {
+    let totalSpan = 0, totalWords = 0;
+    for (let t of this.chunkTimings.values())
+      totalSpan += t.spanMs, totalWords += t.wordCount;
+    if (totalWords <= 0) return null;
+    let msPerWord = totalSpan / totalWords, wordsLeft = Math.max(this.model.words.length - (this._currentWord + 1), 0);
+    return { msPerWord, wordsLeft };
+  }
   // The word/sentence currently painted. In reading mode there is no sync field
   // to read, so the acceptance checks and the reconfigure path read these.
   get currentWord() {
@@ -18889,16 +18911,33 @@ var ReadingSession = class {
   // ─── Engine callbacks ────────────────────────────────────────────────────────
   requestChunk(i, priority) {
     this.synthesis.request(this.chunks[i], priority).then((a) => {
-      this.disposed || this.engine.receiveChunk(i, a);
+      this.disposed || (this.harvestTimings(i, a), this.engine.receiveChunk(i, a));
     }).catch((err) => {
       this.disposed || !this.active || (this._state = "error", this.active = !1, this.stopLoop(), this.onStateCb("error", err instanceof Error ? err.message : String(err)));
     });
+  }
+  // Record a chunk's ms-per-word span from its harvested audio. Only ms-unit
+  // timings carry real durations shell-side; fraction-unit timings resolve to ms
+  // inside the engine (from the audio duration), so they are skipped here. Keyed by
+  // chunk index so a re-request overwrites rather than double-counts.
+  harvestTimings(index, audio) {
+    let t = audio.timings;
+    if (t.unit !== "ms") return;
+    let words = t.words;
+    if (words.length === 0) return;
+    let span = words[words.length - 1].end - words[0].start;
+    this.chunkTimings.set(index, { spanMs: Math.max(span, 0), wordCount: words.length });
   }
   onPosition(word, sentence) {
     this._currentWord = word, this._currentSentence = sentence, sentence !== this.lastReportedSentence && (this.lastReportedSentence = sentence, this.onPositionSaved?.(word)), this.surface.onPosition(word, sentence);
   }
   handleEngineState(s) {
-    this._state = s, s === "playing" ? this.startLoop() : this.stopLoop(), s === "ended" && (this.active = !1), this.onStateCb(s);
+    this._state = s, s === "playing" ? this.startLoop() : this.stopLoop(), s === "ended" && (this.active = !1, this.cancelEndedLinger(), this.endedLingerTimer = setTimeout(() => {
+      this.endedLingerTimer = null, this.disposed || this.surface.clear();
+    }, ENDED_LINGER_MS)), this.onStateCb(s);
+  }
+  cancelEndedLinger() {
+    this.endedLingerTimer != null && (clearTimeout(this.endedLingerTimer), this.endedLingerTimer = null);
   }
   // ─── Internals ────────────────────────────────────────────────────────────────
   // Mark a playback request in flight: expose "preparing" now so the UI answers
@@ -18906,7 +18945,7 @@ var ReadingSession = class {
   // "playing" when audio actually starts, overwriting this; a synchronous start
   // (already-loaded chunk) overwrites it within the same call, so no flicker.
   enterPreparing() {
-    this.active = !0, this._state = "preparing", this.onStateCb("preparing");
+    this.cancelEndedLinger(), this.active = !0, this._state = "preparing", this.onStateCb("preparing");
   }
   loop = () => {
     this.engine.tick(), this.rafId = requestAnimationFrame(this.loop);
@@ -18918,7 +18957,7 @@ var ReadingSession = class {
     this.rafId != null && (cancelAnimationFrame(this.rafId), this.rafId = null);
   }
   teardown() {
-    this.active = !1, this.stopLoop(), this.engine.stop(), this.synthesis.abortAll(), this.surface.clear();
+    this.active = !1, this.cancelEndedLinger(), this.stopLoop(), this.engine.stop(), this.synthesis.abortAll(), this.surface.clear();
   }
 };
 
@@ -19721,11 +19760,117 @@ ARMED: waiting for the window to become visible (10 minute limit)...
     let clicked25a = await clickWord(target25a), hintShown25 = await waitUntil(() => !!document.querySelector(".se-hint"), 1500);
     document.querySelectorAll(".se-hint").forEach((e) => e.remove()), plugin.settings.seekHintsShown = 3;
     let clicked25b = await clickWord(target25b), hintSuppressed25 = !await waitUntil(() => !!document.querySelector(".se-hint"), 900);
-    if (check(
+    check(
       "the first-jump hint shows at counter 0 and is suppressed at counter 3",
       started25 && clicked25a && hintShown25 && clicked25b && hintSuppressed25,
       `shownAt0=${hintShown25}, suppressedAt3=${hintSuppressed25}, counterAfterFirst=${plugin.settings.seekHintsShown}`
-    ), plugin.acceptanceDisposeSession(), document.querySelectorAll(".se-hint").forEach((e) => e.remove()), hiddenMidRun()) {
+    ), plugin.acceptanceDisposeSession(), document.querySelectorAll(".se-hint").forEach((e) => e.remove());
+    let getFileByName = (name) => app.vault.getAbstractFileByPath(name) ?? app.vault.getFiles().find((f) => f.path === name), remainingEl = () => document.querySelector(".se-pill-remaining"), editedEl = () => document.querySelector(".se-pill-edited"), pillCount26 = () => document.querySelectorAll(".se-pill").length;
+    plugin.acceptanceClearPosition(NOTE), plugin.settings.speed = 1, plugin.acceptanceStartSession(cm, NOTE);
+    let started26 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      1e4
+    ), labelShown26 = await waitUntil(() => {
+      let el = remainingEl();
+      return !!el && (el.textContent ?? "").length > 0 && !el.classList.contains("se-pill-remaining-hidden");
+    }, 12e3), est26a = plugin.acceptanceSession()?.remainingEstimate() ?? null, label26a = remainingEl()?.textContent ?? "";
+    await sleep(3e3);
+    let est26b = plugin.acceptanceSession()?.remainingEstimate() ?? null, label26b = remainingEl()?.textContent ?? "", shrank26 = !!est26a && !!est26b && est26b.wordsLeft < est26a.wordsLeft;
+    check(
+      "the pill shows a remaining-time label during playback and the estimate shrinks as it reads",
+      started26 && labelShown26 && shrank26 && label26a.length > 0 && label26b.length > 0,
+      `shown=${labelShown26}, label1="${label26a}" wordsLeft=${est26a?.wordsLeft}, label2="${label26b}" wordsLeft=${est26b?.wordsLeft}, shrank=${shrank26}`
+    ), plugin.acceptanceDisposeSession();
+    let ENDING_NOTE = "Skeleton Ending.md";
+    await app.vault.adapter.write(ENDING_NOTE, `Hi there friend. Bye now everyone.
+`);
+    let endLeaf = app.workspace.getLeaf(!0);
+    await endLeaf.openFile(getFileByName(ENDING_NOTE));
+    let endView = endLeaf.view;
+    await endView.setState(
+      { ...endView.getState(), mode: "source", source: !1 },
+      { history: !1 }
+    );
+    let endCm = endView.editor.cm, endField = () => endCm.state.field(syncField);
+    plugin.acceptanceClearPosition(ENDING_NOTE), plugin.acceptanceStartSession(endCm, ENDING_NOTE);
+    let endedReached27 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "ended",
+      25e3
+    );
+    await sleep(300);
+    let present300_27 = endField().word >= 0, clearedBy1200_27 = await waitUntil(() => endField().word === -1, 1100), pillGone27 = await waitUntil(() => pillCount26() === 0, 1500);
+    check(
+      "natural end lingers the highlight ~600ms then clears, and the pill fades out of the DOM",
+      endedReached27 && present300_27 && clearedBy1200_27 && pillGone27,
+      `ended=${endedReached27}, present@300ms=${present300_27}, cleared<=1200ms=${clearedBy1200_27}, pillRemoved=${pillGone27}`
+    ), plugin.acceptanceDisposeSession(), app.workspace.setActiveLeaf(leaf, { focus: !0 }), await sleep(150), await mdView.setState(
+      { ...mdView.getState(), mode: "source", source: !1 },
+      { history: !1 }
+    ), await sleep(150), plugin.acceptanceClearPosition(NOTE), plugin.acceptanceStartSession(cm, NOTE);
+    let started28 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      1e4
+    ), editable28 = field().words.filter(
+      (e) => e.runs.length > 0 && e.runs[0].to - e.runs[0].from >= 3
+    ), picks28 = [editable28[5], editable28[10], editable28[15]].filter(Boolean), mids28 = picks28.map((e) => Math.floor((e.runs[0].from + e.runs[0].to) / 2)).sort((a, b) => b - a);
+    for (let at of mids28) cm.dispatch({ changes: { from: at, insert: "x" } });
+    let badgeOn28 = await waitUntil(() => {
+      let el = editedEl();
+      return !!el && !el.classList.contains("se-pill-edited-hidden");
+    }, 1500), dirtyCount28 = field().words.reduce((n, e) => n + (e.dirty ? 1 : 0), 0);
+    plugin.acceptanceDisposeSession(), plugin.acceptanceStartSession(cm, NOTE), await waitUntil(() => plugin.acceptanceSession()?.state === "playing", 8e3);
+    let el28b = editedEl(), badgeOffFresh28 = !!el28b && el28b.classList.contains("se-pill-edited-hidden");
+    check(
+      "three mid-word edits flip the edited badge on; a fresh session starts without it",
+      started28 && picks28.length === 3 && badgeOn28 && badgeOffFresh28,
+      `picks=${picks28.length}, dirtyWords=${dirtyCount28}, badgeOn=${badgeOn28}, freshHidden=${badgeOffFresh28}`
+    ), plugin.acceptanceDisposeSession();
+    let WARM_NOTE = "Skeleton Warmup.md", WARM_TEXT = `Warm start paragraph with plenty of ordinary words so the first chunk of audio is worth synthesizing into the cache for an instant later play. A second sentence keeps it safe.
+`, WARM_NOTE2 = "Skeleton Warmup Two.md", WARM_TEXT2 = `Another warmup note whose opening chunk uses entirely different vocabulary so its cache key never collides with the earlier warm note referenced above. Second sentence follows along.
+`;
+    await app.vault.adapter.write(WARM_NOTE, WARM_TEXT), await app.vault.adapter.write(WARM_NOTE2, WARM_TEXT2), plugin.settings.providerId = "edge", plugin.acceptanceSetPlayedOnce(!0);
+    let warmVoice = plugin.acceptanceWarmVoice(), cacheLoc = plugin.acceptanceCacheLocation(), keyFor = (text, uri) => {
+      let chunks = buildChunks(parseDocument(text, uri, 1));
+      return DiskCache.makeKey(chunks[0].text, "edge", warmVoice);
+    }, filesFor = (key) => [(0, import_path3.join)(cacheLoc, `${key}.bin`), (0, import_path3.join)(cacheLoc, `${key}.json`)], removeKey = (key) => {
+      for (let f of filesFor(key))
+        try {
+          (0, import_fs3.rmSync)(f, { force: !0 });
+        } catch {
+        }
+    }, key1 = keyFor(WARM_TEXT, WARM_NOTE), key2 = keyFor(WARM_TEXT2, WARM_NOTE2);
+    plugin.acceptanceDisposeSession(), removeKey(key1), removeKey(key2);
+    let warmLeaf = app.workspace.getLeaf(!0);
+    await warmLeaf.openFile(getFileByName(WARM_NOTE));
+    let warmView = warmLeaf.view;
+    await warmView.setState(
+      { ...warmView.getState(), mode: "source", source: !1 },
+      { history: !1 }
+    );
+    let warmCm = warmView.editor.cm;
+    plugin.acceptanceWarmUp(warmCm, WARM_NOTE);
+    let [bin1, json1] = filesFor(key1), warmed29 = await waitUntil(() => (0, import_fs3.existsSync)(bin1) && (0, import_fs3.existsSync)(json1), 1e4), noSession29 = plugin.acceptanceSession() === null, noPill29 = pillCount26() === 0;
+    plugin.acceptanceStartSession(warmCm, WARM_NOTE);
+    let active29 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing",
+      12e3
+    );
+    plugin.acceptanceSession()?.playPause(), await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 3e3), removeKey(key2);
+    let warmLeaf2 = app.workspace.getLeaf(!0);
+    await warmLeaf2.openFile(getFileByName(WARM_NOTE2));
+    let warmView2 = warmLeaf2.view;
+    await warmView2.setState(
+      { ...warmView2.getState(), mode: "source", source: !1 },
+      { history: !1 }
+    );
+    let warmCm2 = warmView2.editor.cm;
+    plugin.acceptanceWarmUp(warmCm2, WARM_NOTE2);
+    let [bin2, json2] = filesFor(key2), notWarmedActive29 = !await waitUntil(() => (0, import_fs3.existsSync)(bin2) && (0, import_fs3.existsSync)(json2), 3e3);
+    if (check(
+      "warm start writes chunk-0 cache on an idle switch, but not while a session is active",
+      warmed29 && noSession29 && noPill29 && active29 && notWarmedActive29,
+      `warmedIdle=${warmed29}, noSession=${noSession29}, noPill=${noPill29}, sessionActive=${active29}, blockedWhileActive=${notWarmedActive29}, key1=${key1}`
+    ), plugin.acceptanceDisposeSession(), removeKey(key1), removeKey(key2), hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
     }
@@ -19940,7 +20085,7 @@ function formatBytes(bytes) {
 
 // src/shell/player-pill.ts
 var SPEED_PRESETS = [0.8, 1, 1.2, 1.5, 2, 2.5, 3];
-var FADE_RESTORE_MS = 1500, FALLBACK_GLYPH = {
+var FADE_RESTORE_MS = 1500, LEAVING_FALLBACK_MS = 300, EDITED_TITLE = "The note changed while reading; the voice is finishing the text it started. Stop and play again to re-read.", FALLBACK_GLYPH = {
   play: "\u25B6",
   // right-pointing triangle
   pause: "\u23F8",
@@ -19956,7 +20101,7 @@ function formatRate(rate) {
 var PlayerPill = class {
   constructor(cb, opts = {}) {
     this.cb = cb;
-    this.renderIcon = opts.renderIcon, this.root = document.createElement("div"), this.root.className = "se-pill", this.root.setAttribute("role", "toolbar"), this.root.setAttribute("aria-label", "Reading controls"), this.root.addEventListener("mousedown", (e) => e.preventDefault()), this.root.addEventListener("pointerenter", () => this.restore()), this.buildControls(), this.setControlIcon(this.playBtn, "play"), this.setControlIcon(this.earBtn, "ear"), this.setControlIcon(this.stopBtn, "x"), this.setSpeed(1), this.setVoiceLabel(""), this.setListening(!0);
+    this.renderIcon = opts.renderIcon, this.root = document.createElement("div"), this.root.className = "se-pill", this.root.setAttribute("role", "toolbar"), this.root.setAttribute("aria-label", "Reading controls"), this.root.addEventListener("mousedown", (e) => e.preventDefault()), this.root.addEventListener("pointerenter", () => this.restore()), this.buildControls(), this.setControlIcon(this.playBtn, "play"), this.setControlIcon(this.earBtn, "ear"), this.setControlIcon(this.stopBtn, "x"), this.setSpeed(1), this.setVoiceLabel(""), this.setRemaining(""), this.setEdited(!1), this.setListening(!0);
   }
   cb;
   root;
@@ -19965,8 +20110,15 @@ var PlayerPill = class {
   voiceBtn;
   earBtn;
   stopBtn;
+  remainingEl;
+  editedEl;
   renderIcon;
   fadeTimer = null;
+  leavingTimer = null;
+  leaving = !1;
+  // The one-shot completion of an in-flight leaving fade, so transitionend, the
+  // timer fallback, and an early destroy() all funnel through it exactly once.
+  leavingDone = null;
   destroyed = !1;
   // ─── Public API ────────────────────────────────────────────────────────────
   mount(container) {
@@ -19997,6 +20149,35 @@ var PlayerPill = class {
   setListening(on) {
     this.earBtn.classList.toggle("se-pill-ear-active", on), this.earBtn.classList.toggle("se-pill-ear-off", !on);
   }
+  // The dim remaining-time label (spec 0010 point 1). Hidden entirely when empty
+  // (no estimate yet), so the pill shows nothing rather than a wrong number.
+  setRemaining(label) {
+    this.remainingEl.textContent = label, this.remainingEl.classList.toggle("se-pill-remaining-hidden", label.length === 0);
+  }
+  // The dim "edited" degradation badge (spec 0010 point 3). Its title explains that
+  // the voice finishes the text it started; a fresh session starts it hidden.
+  setEdited(on) {
+    this.editedEl.classList.toggle("se-pill-edited-hidden", !on);
+  }
+  // Graceful leaving (spec 0010 point 2): fade the pill out (opacity only, via the
+  // se-pill-leaving class) then remove it, instead of popping. The host calls this
+  // on the ended/stop path and clears its reference in the callback. Removal fires
+  // on the opacity transitionend, with a timer fallback for occluded windows; both
+  // paths run the removal exactly once. Idempotent while already leaving.
+  fadeOutAndRemove(onRemoved) {
+    if (this.destroyed) {
+      onRemoved?.();
+      return;
+    }
+    if (this.leaving) return;
+    this.leaving = !0, this.fadeTimer != null && (clearTimeout(this.fadeTimer), this.fadeTimer = null);
+    let done = () => {
+      this.destroyed || (this.destroyed = !0, this.leavingDone = null, this.leavingTimer != null && (clearTimeout(this.leavingTimer), this.leavingTimer = null), this.root.removeEventListener("transitionend", onEnd), this.root.remove(), onRemoved?.());
+    }, onEnd = (e) => {
+      e.propertyName === "opacity" && done();
+    };
+    this.leavingDone = done, this.root.addEventListener("transitionend", onEnd), this.root.classList.add("se-pill-leaving"), this.leavingTimer = setTimeout(done, LEAVING_FALLBACK_MS);
+  }
   // A user edit landed: fade now, and arm the restore for a lull.
   notifyTyping() {
     this.destroyed || (this.root.classList.add("se-pill-faded"), this.fadeTimer != null && clearTimeout(this.fadeTimer), this.fadeTimer = setTimeout(() => {
@@ -20004,11 +20185,19 @@ var PlayerPill = class {
     }, FADE_RESTORE_MS));
   }
   destroy() {
-    this.destroyed = !0, this.fadeTimer != null && (clearTimeout(this.fadeTimer), this.fadeTimer = null), this.root.remove();
+    if (this.fadeTimer != null && (clearTimeout(this.fadeTimer), this.fadeTimer = null), this.leavingDone) {
+      this.leavingDone();
+      return;
+    }
+    this.destroyed = !0, this.leavingTimer != null && (clearTimeout(this.leavingTimer), this.leavingTimer = null), this.root.remove();
   }
   // ─── Internals ───────────────────────────────────────────────────────────────
   buildControls() {
-    this.playBtn = this.makeControl("se-pill-play", "Play or pause"), this.playBtn.addEventListener("click", () => this.cb.onPlayPause()), this.speedBtn = this.makeControl("se-pill-speed", "Reading speed"), this.speedBtn.addEventListener("click", (e) => this.cb.onSpeed(e)), this.voiceBtn = this.makeControl("se-pill-voice", "Change voice"), this.voiceBtn.addEventListener("click", (e) => this.cb.onVoice(e)), this.earBtn = this.makeControl("se-pill-ear", "Listening mode"), this.earBtn.addEventListener("click", () => this.cb.onListening()), this.stopBtn = this.makeControl("se-pill-stop", "Stop reading"), this.stopBtn.addEventListener("click", () => this.cb.onStop());
+    this.playBtn = this.makeControl("se-pill-play", "Play or pause"), this.playBtn.addEventListener("click", () => this.cb.onPlayPause()), this.speedBtn = this.makeControl("se-pill-speed", "Reading speed"), this.speedBtn.addEventListener("click", (e) => this.cb.onSpeed(e)), this.voiceBtn = this.makeControl("se-pill-voice", "Change voice"), this.voiceBtn.addEventListener("click", (e) => this.cb.onVoice(e)), this.remainingEl = this.makeSpan("se-pill-remaining"), this.editedEl = this.makeSpan("se-pill-edited"), this.editedEl.textContent = "edited", this.editedEl.setAttribute("title", EDITED_TITLE), this.earBtn = this.makeControl("se-pill-ear", "Listening mode"), this.earBtn.addEventListener("click", () => this.cb.onListening()), this.stopBtn = this.makeControl("se-pill-stop", "Stop reading"), this.stopBtn.addEventListener("click", () => this.cb.onStop());
+  }
+  makeSpan(cls) {
+    let s = document.createElement("span");
+    return s.className = cls, this.root.appendChild(s), s;
   }
   makeControl(cls, aria) {
     let b = document.createElement("button");
@@ -20098,6 +20287,36 @@ function cacheDir(platform, env, home) {
   return typeof xdg == "string" && xdg.trim().length > 0 ? (0, import_path4.join)(xdg, APP) : (0, import_path4.join)(home, ".cache", APP);
 }
 
+// src/shell/remaining.ts
+function remainingLabel(msPerWord, wordsLeft, speed) {
+  if (msPerWord == null || !Number.isFinite(msPerWord) || msPerWord <= 0) return "";
+  let speedFactor = speed > 0 ? speed : 1, remainingMs = msPerWord / speedFactor * Math.max(wordsLeft, 0);
+  return remainingMs >= 9e4 ? `~${Math.round(remainingMs / 6e4)} min left` : remainingMs >= 2e4 ? "~1 min left" : "almost done";
+}
+
+// src/shell/warm-up.ts
+function shouldWarmUp(state) {
+  return state.playedOnce && state.providerId === "edge" && !state.sessionActive;
+}
+async function warmUp(deps) {
+  try {
+    let model = parseDocument(deps.docText, deps.uri, 1), chunks = buildChunks(model);
+    if (chunks.length === 0) return;
+    let chunk0 = chunks[0], key = DiskCache.makeKey(chunk0.text, deps.provider.id, deps.voice);
+    if (await deps.cache.get(key) || deps.signal.aborted) return;
+    let service = new SynthesisService(deps.provider, deps.voice, deps.cache);
+    await new Promise((resolve) => {
+      let settled = !1, finish = () => {
+        settled || (settled = !0, deps.signal.removeEventListener("abort", onAbort), resolve());
+      }, onAbort = () => {
+        service.abortAll(), finish();
+      };
+      deps.signal.addEventListener("abort", onAbort, { once: !0 }), service.request(chunk0, !0).then(finish, finish);
+    });
+  } catch {
+  }
+}
+
 // src/shell/positions.ts
 var POSITION_TTL_MS = 720 * 60 * 1e3, POSITION_CAP = 200;
 function recordPosition(positions, path, wordIndex, now, cap = POSITION_CAP) {
@@ -20174,7 +20393,7 @@ var WriteThrottle = class {
 };
 
 // src/shell/main.ts
-var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends import_obsidian3.Plugin {
+var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditorPlugin = class extends import_obsidian3.Plugin {
   keyStore;
   voiceCache;
   session = null;
@@ -20200,6 +20419,11 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   seekHint = null;
   // ONE disk cache for every session, built at load and rebuilt on a size change.
   cache;
+  // Warm start (spec 0010 point 4): true once the plugin has played at least once
+  // this app session, and the single-flight controller for the in-flight warm-up
+  // (a new note switch aborts the previous one).
+  playedOnce = !1;
+  warmUpController = null;
   // Per-note reading positions, mirrored to data.json (throttled).
   positions = {};
   positionThrottle;
@@ -20229,7 +20453,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
       callback: () => {
         this.toggleListeningMode();
       }
-    }), this.registerEvent(this.app.workspace.on("layout-change", () => this.checkModeFlip())), this.addSettingTab(new SpeakingEditorSettingTab(this.app, this)), this.addCommand({
+    }), this.registerEvent(this.app.workspace.on("layout-change", () => this.checkModeFlip())), this.registerEvent(this.app.workspace.on("file-open", () => this.maybeWarmUp())), this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.maybeWarmUp())), this.addSettingTab(new SpeakingEditorSettingTab(this.app, this)), this.addCommand({
       id: "run-acceptance-checks",
       name: "Run acceptance checks",
       callback: () => {
@@ -20238,7 +20462,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     });
   }
   onunload() {
-    this.positionThrottle?.flush(), this.disposeSession();
+    this.positionThrottle?.flush(), this.warmUpController?.abort(), this.disposeSession();
   }
   // ─── Settings persistence ────────────────────────────────────────────────────
   async saveSettings() {
@@ -20284,7 +20508,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   // A session crossed into a new sentence: remember the spot for this note and
   // schedule a throttled write-through.
   onSessionPosition(wordIndex) {
-    this.positions = recordPosition(this.positions, this.sessionUri, wordIndex, Date.now()), this.positionThrottle.request();
+    this.positions = recordPosition(this.positions, this.sessionUri, wordIndex, Date.now()), this.positionThrottle.request(), this.updateRemainingLabel();
   }
   // "Read this note from the top": clear any saved position and start fresh at
   // word 0, restarting a live session on this note if there is one.
@@ -20295,7 +20519,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     cm && this.restartFromTop(cm, view.file?.path ?? "untitled");
   }
   restartFromTop(cm, uri) {
-    this.disposeSession(), this.positions = clearPosition(this.positions, uri), this.positionThrottle.flush();
+    this.warmUpController?.abort(), this.disposeSession(), this.positions = clearPosition(this.positions, uri), this.positionThrottle.flush();
     let ctx = this.resolveSurfaceContext();
     this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container, this.session = this.buildSession(cm, uri), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause();
   }
@@ -20311,7 +20535,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   }
   // Speed applies immediately to the live audio, no rebuild.
   async applySpeed(rate) {
-    this.settings.speed = rate, await this.saveSettings(), this.session?.setSpeed(rate), this.pill?.setSpeed(rate);
+    this.settings.speed = rate, await this.saveSettings(), this.session?.setSpeed(rate), this.pill?.setSpeed(rate), this.updateRemainingLabel();
   }
   // Provider change: persist, then reconfigure any active session in place.
   async applyProvider(providerId) {
@@ -20392,6 +20616,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     }
   }
   startSession(cm, uri) {
+    this.warmUpController?.abort();
     let ctx = this.resolveSurfaceContext();
     this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container;
     let fresh = getFreshPosition(this.positions, uri, Date.now()), primeAtWord;
@@ -20412,7 +20637,21 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
       this.showSessionError(message), this.destroyPill();
       return;
     }
-    state === "playing" || state === "paused" || state === "preparing" ? (this.ensurePill(), this.pill?.setState(state), this.pill?.setPreparing(state === "preparing")) : this.destroyPill();
+    state === "playing" || state === "paused" || state === "preparing" ? (this.ensurePill(), this.pill?.setState(state), this.pill?.setPreparing(state === "preparing"), state === "playing" && (this.playedOnce = !0, this.updateRemainingLabel())) : this.fadePillOut();
+  }
+  // Fade the current pill out (opacity only) and remove it. The reference is
+  // released now so a fresh play mounts a brand-new pill rather than reviving this
+  // one mid-fade.
+  fadePillOut() {
+    let pill = this.pill;
+    pill && (this.pill = null, pill.fadeOutAndRemove());
+  }
+  // Recompute and push the dim remaining-time label from the session's estimate and
+  // the current speed. A null estimate (no timings yet) renders empty (hidden).
+  updateRemainingLabel() {
+    if (!this.pill) return;
+    let est = this.session?.remainingEstimate() ?? null, label = est ? remainingLabel(est.msPerWord, est.wordsLeft, this.settings.speed) : "";
+    this.pill.setRemaining(label);
   }
   // Build the persistent error Notice (spec 0009 point 2): a plain sentence naming
   // the provider that failed, plus exactly one action. On macOS with a non-say
@@ -20501,14 +20740,61 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
       showMenu: (menu) => menu.showAtPosition({ x: evt.clientX, y: evt.clientY })
     });
   }
-  // A doc-changing edit on the session editor politely fades the pill.
+  // A doc-changing edit on the session editor politely fades the pill, and once
+  // enough words have been edited mid-read, shows the "edited" degradation badge.
   onEditorUpdate(update) {
-    !this.pill || this.sessionView !== update.view || update.docChanged && this.pill.notifyTyping();
+    !this.pill || this.sessionView !== update.view || update.docChanged && (this.pill.notifyTyping(), this.updateEditedBadge(update.view));
+  }
+  // Flip the "edited" badge from the sync field's dirty word count (spec 0010 point
+  // 3). Live preview only: reading mode paints a rendered view with no live edits,
+  // so the badge is a live-preview behavior. The count is per session because a
+  // fresh session re-seeds the field (dirty reset) and mounts a fresh pill.
+  updateEditedBadge(view) {
+    if (this.sessionMode !== "live") return;
+    let state = view.state.field(syncField, !1);
+    if (!state) return;
+    let dirty = state.words.reduce((n, e) => n + (e.dirty ? 1 : 0), 0);
+    this.pill?.setEdited(dirty >= EDITED_DIRTY_THRESHOLD);
   }
   updateRibbon(state) {
     if (!this.ribbonEl) return;
     let preparing = state === "preparing", icon = preparing ? "loader-2" : state === "playing" ? "pause" : state === "paused" ? "play" : "play-circle";
     (0, import_obsidian3.setIcon)(this.ribbonEl, icon), this.ribbonEl.classList.toggle("se-preparing-pulse", preparing);
+  }
+  // ─── Warm start (spec 0010 point 4) ──────────────────────────────────────────
+  // A reading session is mid-listen (playing, preparing, or paused). Ended, idle,
+  // and error sessions do not count: the note is not being read, so warming the
+  // next note is fine.
+  isSessionActive() {
+    let s = this.session?.state;
+    return s === "playing" || s === "preparing" || s === "paused";
+  }
+  // Fired on a note switch. Resolves the active markdown editor and warms it if the
+  // gate passes; the effectful guardrails (cache miss, single-flight) live in the
+  // warm-up itself.
+  maybeWarmUp() {
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
+    if (!view) return;
+    let cm = view.editor.cm;
+    cm && this.maybeWarmUpFor(cm, view.file?.path ?? "untitled");
+  }
+  maybeWarmUpFor(cm, uri) {
+    if (!shouldWarmUp({
+      playedOnce: this.playedOnce,
+      providerId: this.settings.providerId,
+      sessionActive: this.isSessionActive()
+    }))
+      return;
+    this.warmUpController?.abort(), this.warmUpController = new AbortController();
+    let provider = buildProvider(this.settings.providerId, this.keyStore), voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    warmUp({
+      docText: cm.state.doc.toString(),
+      uri,
+      provider,
+      voice,
+      cache: this.cache,
+      signal: this.warmUpController.signal
+    });
   }
   // ─── Acceptance helpers (dev-only, used by the harness) ───────────────────────
   // True while the verification run owns the plugin; user-facing playback
@@ -20527,6 +20813,22 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   }
   acceptanceSession() {
     return this.session;
+  }
+  // Warm-start helpers (spec 0010 point 4, check 29): drive the REAL warm-up path
+  // on a given editor, force the played-once gate, and expose the real cache dir so
+  // the check can assert (and then clean) the chunk-0 files the warm-up writes.
+  acceptanceSetPlayedOnce(on) {
+    this.playedOnce = on;
+  }
+  acceptanceWarmUp(cm, uri) {
+    this.maybeWarmUpFor(cm, uri);
+  }
+  acceptanceCacheLocation() {
+    return this.cacheLocation();
+  }
+  acceptanceWarmVoice() {
+    let provider = buildProvider(this.settings.providerId, this.keyStore);
+    return voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
   }
   // Drive the real error-Notice path from a harness session's onState("error"),
   // so check 24 can assert the user sees the mapped sentence and an action button,

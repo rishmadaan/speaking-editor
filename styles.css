@@ -139,6 +139,41 @@
   animation: se-preparing-pulse 1.2s ease-in-out infinite;
 }
 
+/* Remaining-time label and the "edited" degradation badge (spec 0010 points 1, 3):
+   dim status slots between the voice label and the ear. Theme variables only; both
+   hide via display:none when there is nothing to say (no layout shift while shown
+   since the pill is content-sized). */
+
+.se-pill .se-pill-remaining {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.se-pill .se-pill-remaining-hidden {
+  display: none;
+}
+
+.se-pill .se-pill-edited {
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: help;
+}
+
+.se-pill .se-pill-edited-hidden {
+  display: none;
+}
+
+/* Graceful ending (spec 0010 point 2): the pill fades out (opacity only, the calm
+   rule) before it is removed, instead of popping. 200ms opacity transition; the
+   host removes the element on the opacity transitionend, with a timer fallback. */
+
+.se-pill.se-pill-leaving {
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
 /* The first-jump teaching hint (spec 0009 point 3). Anchored near the pill,
    bottom-center of the editor, just above where the pill sits. Never blocks input
    (pointer-events: none) and only opacity transitions (it fades in and out; it

@@ -5,7 +5,7 @@
 // Every failure path still writes the report, so a run is never silently lost.
 import { App, MarkdownView, Notice, TFile } from "obsidian";
 import { EditorView } from "@codemirror/view";
-import { mkdtempSync } from "fs";
+import { mkdtempSync, existsSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { syncField } from "./sync-field";
@@ -16,7 +16,7 @@ import { formatSpeedTitle } from "./pill-menus";
 import { DiskCache } from "../engine/synthesis/disk-cache";
 import { EdgeProvider } from "../engine/synthesis/edge";
 import { ChunkAudio, TtsProvider, VoiceInfo } from "../engine/synthesis/provider";
-import { Chunk } from "../engine/core";
+import { Chunk, parseDocument, buildChunks } from "../engine/core";
 import { mapProviderError } from "./error-copy";
 import { providerLabel } from "./providers";
 import type SpeakingEditorPlugin from "./main";
@@ -902,6 +902,204 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
     );
     plugin.acceptanceDisposeSession();
     document.querySelectorAll(".se-hint").forEach((e) => e.remove());
+
+    // ─── UX P2 checks (spec 0010) ────────────────────────────────────────────
+    const getFileByName = (name: string): TFile =>
+      (app.vault.getAbstractFileByPath(name) as TFile) ??
+      app.vault.getFiles().find((f) => f.path === name)!;
+    const remainingEl = () => document.querySelector(".se-pill-remaining") as HTMLElement | null;
+    const editedEl = () => document.querySelector(".se-pill-edited") as HTMLElement | null;
+    const pillCount26 = () => document.querySelectorAll(".se-pill").length;
+
+    // 26. During playback the pill shows a remaining-time label once timings exist,
+    //     and the estimate shrinks as reading proceeds (sampled twice, 3s apart).
+    plugin.acceptanceClearPosition(NOTE);
+    plugin.settings.speed = 1.0;
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started26 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      10000
+    );
+    // wait for a shown (non-empty, not hidden) remaining label: timings harvested
+    const labelShown26 = await waitUntil(() => {
+      const el = remainingEl();
+      return (
+        !!el &&
+        (el.textContent ?? "").length > 0 &&
+        !el.classList.contains("se-pill-remaining-hidden")
+      );
+    }, 12000);
+    const est26a = plugin.acceptanceSession()?.remainingEstimate() ?? null;
+    const label26a = remainingEl()?.textContent ?? "";
+    await sleep(3000);
+    const est26b = plugin.acceptanceSession()?.remainingEstimate() ?? null;
+    const label26b = remainingEl()?.textContent ?? "";
+    const shrank26 = !!est26a && !!est26b && est26b.wordsLeft < est26a.wordsLeft;
+    check(
+      "the pill shows a remaining-time label during playback and the estimate shrinks as it reads",
+      started26 && labelShown26 && shrank26 && label26a.length > 0 && label26b.length > 0,
+      `shown=${labelShown26}, label1="${label26a}" wordsLeft=${est26a?.wordsLeft}, label2="${label26b}" wordsLeft=${est26b?.wordsLeft}, shrank=${shrank26}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 27. Natural end on a two-sentence fixture: the last word's highlight is still
+    //     present ~300ms after "ended", gone by ~1200ms (the 600ms linger), and the
+    //     pill element leaves the DOM after its fade.
+    const ENDING_NOTE = "Skeleton Ending.md";
+    await app.vault.adapter.write(ENDING_NOTE, "Hi there friend. Bye now everyone.\n");
+    const endLeaf = app.workspace.getLeaf(true);
+    await endLeaf.openFile(getFileByName(ENDING_NOTE));
+    const endView = endLeaf.view as MarkdownView;
+    await (endView as any).setState(
+      { ...(endView as any).getState(), mode: "source", source: false },
+      { history: false }
+    );
+    const endCm: EditorView = (endView.editor as any).cm;
+    const endField = () => endCm.state.field(syncField);
+    plugin.acceptanceClearPosition(ENDING_NOTE);
+    plugin.acceptanceStartSession(endCm, ENDING_NOTE);
+    const endedReached27 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "ended",
+      25000
+    );
+    await sleep(300);
+    const present300_27 = endField().word >= 0; // decoration still lingering
+    const clearedBy1200_27 = await waitUntil(() => endField().word === -1, 1100);
+    const pillGone27 = await waitUntil(() => pillCount26() === 0, 1500);
+    check(
+      "natural end lingers the highlight ~600ms then clears, and the pill fades out of the DOM",
+      endedReached27 && present300_27 && clearedBy1200_27 && pillGone27,
+      `ended=${endedReached27}, present@300ms=${present300_27}, cleared<=1200ms=${clearedBy1200_27}, pillRemoved=${pillGone27}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // Back to the main note's leaf and a clean source editor for checks 28/29.
+    (app.workspace as any).setActiveLeaf(leaf, { focus: true });
+    await sleep(150);
+    await (mdView as any).setState(
+      { ...(mdView as any).getState(), mode: "source", source: false },
+      { history: false }
+    );
+    await sleep(150);
+
+    // 28. Three edits inside distinct words during playback flip the edited badge
+    //     on; a fresh session starts without it.
+    plugin.acceptanceClearPosition(NOTE);
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started28 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      10000
+    );
+    // pick three distinct words wide enough to edit strictly inside a run
+    const editable28 = field().words.filter(
+      (e) => e.runs.length > 0 && e.runs[0].to - e.runs[0].from >= 3
+    );
+    const picks28 = [editable28[5], editable28[10], editable28[15]].filter(Boolean);
+    // insert from the highest offset down so earlier picks' offsets do not shift
+    const mids28 = picks28
+      .map((e) => Math.floor((e.runs[0].from + e.runs[0].to) / 2))
+      .sort((a, b) => b - a);
+    for (const at of mids28) cm.dispatch({ changes: { from: at, insert: "x" } });
+    const badgeOn28 = await waitUntil(() => {
+      const el = editedEl();
+      return !!el && !el.classList.contains("se-pill-edited-hidden");
+    }, 1500);
+    const dirtyCount28 = field().words.reduce((n, e) => n + (e.dirty ? 1 : 0), 0);
+    // a fresh session starts without the badge
+    plugin.acceptanceDisposeSession();
+    plugin.acceptanceStartSession(cm, NOTE);
+    await waitUntil(() => plugin.acceptanceSession()?.state === "playing", 8000);
+    const el28b = editedEl();
+    const badgeOffFresh28 = !!el28b && el28b.classList.contains("se-pill-edited-hidden");
+    check(
+      "three mid-word edits flip the edited badge on; a fresh session starts without it",
+      started28 && picks28.length === 3 && badgeOn28 && badgeOffFresh28,
+      `picks=${picks28.length}, dirtyWords=${dirtyCount28}, badgeOn=${badgeOn28}, freshHidden=${badgeOffFresh28}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 29. Warm start: with the guardrails satisfied (played once, Edge, idle, cache
+    //     miss), switching to a never-played note writes chunk-0 cache files into
+    //     the plugin's REAL cache within 10s, without a session or audio; switching
+    //     with a session ACTIVE does not warm up. Clean the files afterward.
+    const WARM_NOTE = "Skeleton Warmup.md";
+    const WARM_TEXT =
+      "Warm start paragraph with plenty of ordinary words so the first chunk of audio is worth synthesizing into the cache for an instant later play. A second sentence keeps it safe.\n";
+    const WARM_NOTE2 = "Skeleton Warmup Two.md";
+    const WARM_TEXT2 =
+      "Another warmup note whose opening chunk uses entirely different vocabulary so its cache key never collides with the earlier warm note referenced above. Second sentence follows along.\n";
+    await app.vault.adapter.write(WARM_NOTE, WARM_TEXT);
+    await app.vault.adapter.write(WARM_NOTE2, WARM_TEXT2);
+
+    plugin.settings.providerId = "edge";
+    plugin.acceptanceSetPlayedOnce(true);
+    const warmVoice = plugin.acceptanceWarmVoice();
+    const cacheLoc = plugin.acceptanceCacheLocation();
+    const keyFor = (text: string, uri: string): string => {
+      const chunks = buildChunks(parseDocument(text, uri, 1));
+      return DiskCache.makeKey(chunks[0].text, "edge", warmVoice);
+    };
+    const filesFor = (key: string) => [join(cacheLoc, `${key}.bin`), join(cacheLoc, `${key}.json`)];
+    const removeKey = (key: string) => {
+      for (const f of filesFor(key)) {
+        try {
+          rmSync(f, { force: true });
+        } catch {
+          /* best effort */
+        }
+      }
+    };
+    const key1 = keyFor(WARM_TEXT, WARM_NOTE);
+    const key2 = keyFor(WARM_TEXT2, WARM_NOTE2);
+
+    // POSITIVE: idle + played-once + Edge + cache miss -> a warm-up writes chunk 0.
+    plugin.acceptanceDisposeSession();
+    removeKey(key1);
+    removeKey(key2);
+    const warmLeaf = app.workspace.getLeaf(true);
+    await warmLeaf.openFile(getFileByName(WARM_NOTE));
+    const warmView = warmLeaf.view as MarkdownView;
+    await (warmView as any).setState(
+      { ...(warmView as any).getState(), mode: "source", source: false },
+      { history: false }
+    );
+    const warmCm: EditorView = (warmView.editor as any).cm;
+    plugin.acceptanceWarmUp(warmCm, WARM_NOTE); // drive the REAL warm-up path
+    const [bin1, json1] = filesFor(key1);
+    const warmed29 = await waitUntil(() => existsSync(bin1) && existsSync(json1), 10000);
+    const noSession29 = plugin.acceptanceSession() === null;
+    const noPill29 = pillCount26() === 0;
+
+    // NEGATIVE: a session ACTIVE -> switching to another never-played note does not
+    // warm it. Pause the session so it stays active (mid-listen) for the assertion.
+    plugin.acceptanceStartSession(warmCm, WARM_NOTE);
+    const active29 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing",
+      12000
+    );
+    plugin.acceptanceSession()?.playPause(); // pause: still active, holds the gate closed
+    await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 3000);
+    removeKey(key2);
+    const warmLeaf2 = app.workspace.getLeaf(true);
+    await warmLeaf2.openFile(getFileByName(WARM_NOTE2));
+    const warmView2 = warmLeaf2.view as MarkdownView;
+    await (warmView2 as any).setState(
+      { ...(warmView2 as any).getState(), mode: "source", source: false },
+      { history: false }
+    );
+    const warmCm2: EditorView = (warmView2.editor as any).cm;
+    plugin.acceptanceWarmUp(warmCm2, WARM_NOTE2); // gate blocks it (session active)
+    const [bin2, json2] = filesFor(key2);
+    const notWarmedActive29 = !(await waitUntil(() => existsSync(bin2) && existsSync(json2), 3000));
+    check(
+      "warm start writes chunk-0 cache on an idle switch, but not while a session is active",
+      warmed29 && noSession29 && noPill29 && active29 && notWarmedActive29,
+      `warmedIdle=${warmed29}, noSession=${noSession29}, noPill=${noPill29}, sessionActive=${active29}, blockedWhileActive=${notWarmedActive29}, key1=${key1}`
+    );
+    plugin.acceptanceDisposeSession();
+    // Clean the chunk-0 files this check wrote into the REAL cache.
+    removeKey(key1);
+    removeKey(key2);
 
     if (hiddenMidRun()) {
       lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the control-surface checks; rAF-driven`, `measurements are invalid. Keep the window visible and rerun.`);

@@ -238,6 +238,101 @@ describe("PlayerPill DOM", () => {
     expect(root.classList.contains("se-pill-faded")).toBe(false);
   });
 
+  it("setRemaining shows dim text and hides the slot when empty (spec 0010)", () => {
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    const el = container.querySelector(".se-pill-remaining") as HTMLElement;
+    expect(el).not.toBeNull();
+    // starts hidden (no estimate yet)
+    expect(el.classList.contains("se-pill-remaining-hidden")).toBe(true);
+    pill.setRemaining("~12 min left");
+    expect(el.textContent).toBe("~12 min left");
+    expect(el.classList.contains("se-pill-remaining-hidden")).toBe(false);
+    pill.setRemaining("");
+    expect(el.textContent).toBe("");
+    expect(el.classList.contains("se-pill-remaining-hidden")).toBe(true);
+  });
+
+  it("setEdited toggles the badge and carries the explaining title (spec 0010)", () => {
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    const el = container.querySelector(".se-pill-edited") as HTMLElement;
+    expect(el).not.toBeNull();
+    expect(el.textContent).toBe("edited");
+    // hidden by default
+    expect(el.classList.contains("se-pill-edited-hidden")).toBe(true);
+    pill.setEdited(true);
+    expect(el.classList.contains("se-pill-edited-hidden")).toBe(false);
+    expect(el.getAttribute("title")).toContain("finishing the text it started");
+    pill.setEdited(false);
+    expect(el.classList.contains("se-pill-edited-hidden")).toBe(true);
+  });
+
+  it("the remaining/edited slots are not buttons (still exactly five controls)", () => {
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    expect(container.querySelectorAll(".se-pill button").length).toBe(5);
+  });
+
+  it("fadeOutAndRemove adds the leaving class and removes on the 300ms fallback", () => {
+    vi.useFakeTimers();
+    const cb = vi.fn();
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    const root = container.querySelector(".se-pill") as HTMLElement;
+    pill.fadeOutAndRemove(cb);
+    expect(root.classList.contains("se-pill-leaving")).toBe(true);
+    expect(cb).not.toHaveBeenCalled();
+    expect(container.querySelector(".se-pill")).not.toBeNull();
+    vi.advanceTimersByTime(300);
+    expect(container.querySelector(".se-pill")).toBeNull();
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("fadeOutAndRemove removes on an opacity transitionend, once, cancelling the fallback", () => {
+    vi.useFakeTimers();
+    const cb = vi.fn();
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    const root = container.querySelector(".se-pill") as HTMLElement;
+    pill.fadeOutAndRemove(cb);
+    // a non-opacity transition is ignored
+    const other = new Event("transitionend") as any;
+    other.propertyName = "transform";
+    root.dispatchEvent(other);
+    expect(container.querySelector(".se-pill")).not.toBeNull();
+    // the opacity transition end removes it
+    const opacityEnd = new Event("transitionend") as any;
+    opacityEnd.propertyName = "opacity";
+    root.dispatchEvent(opacityEnd);
+    expect(container.querySelector(".se-pill")).toBeNull();
+    expect(cb).toHaveBeenCalledTimes(1);
+    // the 300ms fallback must not fire a second removal/callback
+    vi.advanceTimersByTime(300);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("fadeOutAndRemove on an already-destroyed pill calls back immediately", () => {
+    const cb = vi.fn();
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    pill.destroy();
+    pill.fadeOutAndRemove(cb);
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it("destroy after fadeOutAndRemove is safe and does not double-call the callback", () => {
+    vi.useFakeTimers();
+    const cb = vi.fn();
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    pill.fadeOutAndRemove(cb);
+    expect(() => pill.destroy()).not.toThrow();
+    vi.advanceTimersByTime(300);
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(".se-pill")).toBeNull();
+  });
+
   it("destroy removes the element and cancels the pending restore timer", () => {
     vi.useFakeTimers();
     const pill = new PlayerPill(noopCallbacks());

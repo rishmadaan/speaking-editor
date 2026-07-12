@@ -25,6 +25,8 @@ import { SpeakingEditorSettingTab } from "./settings-tab";
 import { PlayerPill } from "./player-pill";
 import { openVoiceMenu, renderSpeedMenu, speedMenuModel } from "./pill-menus";
 import { cacheDir } from "./cache-dir";
+import { remainingLabel } from "./remaining";
+import { shouldWarmUp, warmUp } from "./warm-up";
 import { parseDocument } from "../engine/core";
 import {
   Positions,
@@ -37,6 +39,9 @@ import {
 } from "./positions";
 
 const POSITION_WRITE_INTERVAL_MS = 5000; // persist positions at most this often
+// The pill's "edited" badge appears once this many words have been edited
+// mid-read (spec 0010 point 3): a few stray keystrokes stay quiet.
+const EDITED_DIRTY_THRESHOLD = 3;
 
 export default class SpeakingEditorPlugin extends Plugin {
   // `declare` narrows the base Plugin's `settings?: unknown` slot (the sanctioned
@@ -69,6 +74,11 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   // ONE disk cache for every session, built at load and rebuilt on a size change.
   private cache!: DiskCache;
+  // Warm start (spec 0010 point 4): true once the plugin has played at least once
+  // this app session, and the single-flight controller for the in-flight warm-up
+  // (a new note switch aborts the previous one).
+  private playedOnce = false;
+  private warmUpController: AbortController | null = null;
   // Per-note reading positions, mirrored to data.json (throttled).
   private positions: Positions = {};
   private positionThrottle!: WriteThrottle;
@@ -122,6 +132,13 @@ export default class SpeakingEditorPlugin extends Plugin {
     // toggle; active-leaf-change would miss an in-place toggle on the same leaf.
     this.registerEvent(this.app.workspace.on("layout-change", () => this.checkModeFlip()));
 
+    // Warm start: when the active note changes, quietly synthesize chunk 0 of it
+    // into the disk cache IF every guardrail passes (spec 0010 point 4). Invisible:
+    // no session, no audio, no UI, just a cache write. Both events fire on a note
+    // switch; the single-flight guard makes a double-fire harmless.
+    this.registerEvent(this.app.workspace.on("file-open", () => this.maybeWarmUp()));
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.maybeWarmUp()));
+
     this.addSettingTab(new SpeakingEditorSettingTab(this.app, this));
 
     if (DEV_ACCEPTANCE) {
@@ -140,6 +157,7 @@ export default class SpeakingEditorPlugin extends Plugin {
   onunload() {
     // Persist the latest reading position before tearing down.
     this.positionThrottle?.flush();
+    this.warmUpController?.abort();
     this.disposeSession();
   }
 
@@ -203,6 +221,9 @@ export default class SpeakingEditorPlugin extends Plugin {
   private onSessionPosition(wordIndex: number) {
     this.positions = recordPosition(this.positions, this.sessionUri, wordIndex, Date.now());
     this.positionThrottle.request();
+    // The session only fires this on a sentence change, so refreshing the remaining
+    // label here keeps it calm (not per-word) while shrinking as reading proceeds.
+    this.updateRemainingLabel();
   }
 
   // "Read this note from the top": clear any saved position and start fresh at
@@ -216,6 +237,7 @@ export default class SpeakingEditorPlugin extends Plugin {
   }
 
   private restartFromTop(cm: EditorView, uri: string) {
+    this.warmUpController?.abort();
     this.disposeSession();
     this.positions = clearPosition(this.positions, uri);
     this.positionThrottle.flush(); // persist the clear now
@@ -254,6 +276,8 @@ export default class SpeakingEditorPlugin extends Plugin {
     await this.saveSettings();
     this.session?.setSpeed(rate);
     this.pill?.setSpeed(rate);
+    // The estimate divides by speed, so the label drops when you speed up.
+    this.updateRemainingLabel();
   }
 
   // Provider change: persist, then reconfigure any active session in place.
@@ -393,6 +417,8 @@ export default class SpeakingEditorPlugin extends Plugin {
   }
 
   private startSession(cm: EditorView, uri: string) {
+    // A real play supersedes any speculative warm-up in flight.
+    this.warmUpController?.abort();
     // Pick the surface by the active view's mode BEFORE building the session, so
     // the reading-mode branch aligns against the rendered container.
     const ctx = this.resolveSurfaceContext();
@@ -457,15 +483,42 @@ export default class SpeakingEditorPlugin extends Plugin {
     }
     // The pill lives only while a session is live: a live state (preparing while
     // the first audio synthesizes, playing, paused) ensures it exists and reflects
-    // reality; a terminal state (stop -> idle, natural end, error) removes it. A
-    // later play on a still-alive session recreates a fresh pill.
+    // reality; a terminal state (stop -> idle, natural end) fades it out. A later
+    // play on a still-alive session recreates a fresh pill.
     if (state === "playing" || state === "paused" || state === "preparing") {
       this.ensurePill();
       this.pill?.setState(state);
       this.pill?.setPreparing(state === "preparing");
+      if (state === "playing") {
+        // The plugin has now played at least once this session (warm-start gate).
+        this.playedOnce = true;
+        this.updateRemainingLabel();
+      }
     } else {
-      this.destroyPill();
+      // idle (manual stop) or ended: the pill fades out instead of popping. The
+      // decorations clear immediately on stop and after a 600ms linger on a natural
+      // end; that timing is the session's job, this only retires the pill.
+      this.fadePillOut();
     }
+  }
+
+  // Fade the current pill out (opacity only) and remove it. The reference is
+  // released now so a fresh play mounts a brand-new pill rather than reviving this
+  // one mid-fade.
+  private fadePillOut() {
+    const pill = this.pill;
+    if (!pill) return;
+    this.pill = null;
+    pill.fadeOutAndRemove();
+  }
+
+  // Recompute and push the dim remaining-time label from the session's estimate and
+  // the current speed. A null estimate (no timings yet) renders empty (hidden).
+  private updateRemainingLabel() {
+    if (!this.pill) return;
+    const est = this.session?.remainingEstimate() ?? null;
+    const label = est ? remainingLabel(est.msPerWord, est.wordsLeft, this.settings.speed) : "";
+    this.pill.setRemaining(label);
   }
 
   // Build the persistent error Notice (spec 0009 point 2): a plain sentence naming
@@ -590,10 +643,26 @@ export default class SpeakingEditorPlugin extends Plugin {
     });
   }
 
-  // A doc-changing edit on the session editor politely fades the pill.
+  // A doc-changing edit on the session editor politely fades the pill, and once
+  // enough words have been edited mid-read, shows the "edited" degradation badge.
   private onEditorUpdate(update: ViewUpdate) {
     if (!this.pill || this.sessionView !== update.view) return;
-    if (update.docChanged) this.pill.notifyTyping();
+    if (update.docChanged) {
+      this.pill.notifyTyping();
+      this.updateEditedBadge(update.view);
+    }
+  }
+
+  // Flip the "edited" badge from the sync field's dirty word count (spec 0010 point
+  // 3). Live preview only: reading mode paints a rendered view with no live edits,
+  // so the badge is a live-preview behavior. The count is per session because a
+  // fresh session re-seeds the field (dirty reset) and mounts a fresh pill.
+  private updateEditedBadge(view: EditorView) {
+    if (this.sessionMode !== "live") return;
+    const state = view.state.field(syncField, false);
+    if (!state) return;
+    const dirty = state.words.reduce((n, e) => n + (e.dirty ? 1 : 0), 0);
+    this.pill?.setEdited(dirty >= EDITED_DIRTY_THRESHOLD);
   }
 
   private updateRibbon(state: SessionState) {
@@ -610,6 +679,50 @@ export default class SpeakingEditorPlugin extends Plugin {
       : "play-circle";
     setIcon(this.ribbonEl, icon);
     this.ribbonEl.classList.toggle("se-preparing-pulse", preparing);
+  }
+
+  // ─── Warm start (spec 0010 point 4) ──────────────────────────────────────────
+
+  // A reading session is mid-listen (playing, preparing, or paused). Ended, idle,
+  // and error sessions do not count: the note is not being read, so warming the
+  // next note is fine.
+  private isSessionActive(): boolean {
+    const s = this.session?.state;
+    return s === "playing" || s === "preparing" || s === "paused";
+  }
+
+  // Fired on a note switch. Resolves the active markdown editor and warms it if the
+  // gate passes; the effectful guardrails (cache miss, single-flight) live in the
+  // warm-up itself.
+  private maybeWarmUp() {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view) return;
+    const cm = (view.editor as any).cm as EditorView | undefined;
+    if (!cm) return;
+    this.maybeWarmUpFor(cm, view.file?.path ?? "untitled");
+  }
+
+  private maybeWarmUpFor(cm: EditorView, uri: string) {
+    if (!shouldWarmUp({
+      playedOnce: this.playedOnce,
+      providerId: this.settings.providerId,
+      sessionActive: this.isSessionActive(),
+    })) {
+      return;
+    }
+    // Single-flight: abort any previous warm-up so only the newest note is warmed.
+    this.warmUpController?.abort();
+    this.warmUpController = new AbortController();
+    const provider = buildProvider(this.settings.providerId, this.keyStore);
+    const voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    void warmUp({
+      docText: cm.state.doc.toString(),
+      uri,
+      provider,
+      voice,
+      cache: this.cache,
+      signal: this.warmUpController.signal,
+    });
   }
 
   // ─── Acceptance helpers (dev-only, used by the harness) ───────────────────────
@@ -635,6 +748,26 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   acceptanceSession(): ReadingSession | null {
     return this.session;
+  }
+
+  // Warm-start helpers (spec 0010 point 4, check 29): drive the REAL warm-up path
+  // on a given editor, force the played-once gate, and expose the real cache dir so
+  // the check can assert (and then clean) the chunk-0 files the warm-up writes.
+  acceptanceSetPlayedOnce(on: boolean) {
+    this.playedOnce = on;
+  }
+
+  acceptanceWarmUp(cm: EditorView, uri: string) {
+    this.maybeWarmUpFor(cm, uri);
+  }
+
+  acceptanceCacheLocation(): string {
+    return this.cacheLocation();
+  }
+
+  acceptanceWarmVoice(): string {
+    const provider = buildProvider(this.settings.providerId, this.keyStore);
+    return voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
   }
 
   // Drive the real error-Notice path from a harness session's onState("error"),
