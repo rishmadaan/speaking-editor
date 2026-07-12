@@ -4,17 +4,18 @@
 // mode). Owns the persisted settings, the per-device key store, and the settings
 // tab, and applies setting changes to an active session in place. Acceptance-check
 // command is dev-only (DEV_ACCEPTANCE esbuild define).
-import { MarkdownView, Notice, Plugin, setIcon } from "obsidian";
+import { MarkdownView, Menu, Notice, Plugin, setIcon } from "obsidian";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { syncField } from "./sync-field";
 import { ReadingSession, SessionState } from "./session";
 import { runAcceptance } from "./acceptance";
 import { SpeakingEditorSettings, mergeSettings, rememberVoice, voiceForProvider } from "./settings";
 import { KeyStore } from "./key-store";
-import { buildProvider } from "./providers";
+import { availableProviders, buildProvider } from "./providers";
 import { VoiceCache } from "../engine/synthesis/voice-cache";
 import { SpeakingEditorSettingTab } from "./settings-tab";
-import { PlayerPill, nextPreset } from "./player-pill";
+import { PlayerPill } from "./player-pill";
+import { openVoiceMenu, renderSpeedMenu, speedMenuModel } from "./pill-menus";
 
 export default class SpeakingEditorPlugin extends Plugin {
   // `declare` narrows the base Plugin's `settings?: unknown` slot (the sanctioned
@@ -222,8 +223,8 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.pill = new PlayerPill(
       {
         onPlayPause: () => this.session?.playPause(),
-        onSpeed: (dir) => void this.applySpeed(nextPreset(this.settings.speed, dir)),
-        onVoice: () => this.openSettingsTab(),
+        onSpeed: (evt) => this.showSpeedMenu(evt),
+        onVoice: (evt) => void this.showVoiceMenu(evt),
         onListening: () => void this.toggleListeningMode(),
         onStop: () => this.stopSession(),
       },
@@ -254,6 +255,45 @@ export default class SpeakingEditorPlugin extends Plugin {
     const setting = (this.app as any).setting;
     setting.open();
     setting.openTabById(this.manifest.id);
+  }
+
+  // ─── Pill menus (spec 0005) ──────────────────────────────────────────────────
+
+  // Speed control: a native menu of the presets anchored at the button, the
+  // current speed checked, picks routed through applySpeed (persist + live audio
+  // + label), plus a "Fine-tune in settings" escape hatch.
+  private showSpeedMenu(evt: MouseEvent) {
+    const menu = new Menu();
+    renderSpeedMenu(menu, speedMenuModel(this.settings.speed), {
+      applySpeed: (speed) => void this.applySpeed(speed),
+      openSettings: () => this.openSettingsTab(),
+    });
+    menu.showAtMouseEvent(evt);
+  }
+
+  // Voice control: the async two-section menu (providers + the active provider's
+  // voices). The voice list resolves through the cache first, fetching with a
+  // brief loading state on the pill when uncached, before the menu shows.
+  private async showVoiceMenu(evt: MouseEvent) {
+    const providerId = this.settings.providerId;
+    const provider = buildProvider(providerId, this.keyStore);
+    const currentVoice = voiceForProvider(this.settings, providerId, provider.defaultVoice);
+    await openVoiceMenu({
+      activeProviderId: providerId,
+      provider,
+      voiceCache: this.voiceCache,
+      providers: availableProviders(),
+      currentVoice,
+      hasKey: (id) => this.keyStore.has(id),
+      handlers: {
+        applyProvider: (id) => void this.applyProvider(id),
+        applyVoice: (voice) => void this.applyVoice(providerId, voice),
+        openSettings: () => this.openSettingsTab(),
+      },
+      setVoiceLoading: (on) => this.pill?.setVoiceLoading(on),
+      buildMenu: () => new Menu(),
+      showMenu: (menu) => menu.showAtMouseEvent(evt),
+    });
   }
 
   // A doc-changing edit on the session editor politely fades the pill.

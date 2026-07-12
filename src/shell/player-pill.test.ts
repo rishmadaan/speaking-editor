@@ -94,7 +94,7 @@ describe("PlayerPill DOM", () => {
     expect(root!.querySelectorAll("button").length).toBe(5);
   });
 
-  it("routes each control to its callback; right-click steps speed back", () => {
+  it("routes each control to its callback; speed and voice hand off their click event", () => {
     const cb = noopCallbacks();
     const pill = new PlayerPill(cb);
     pill.mount(container);
@@ -103,22 +103,37 @@ describe("PlayerPill DOM", () => {
     q(".se-pill-play").dispatchEvent(new Event("click", { bubbles: true }));
     expect(cb.onPlayPause).toHaveBeenCalledTimes(1);
 
-    q(".se-pill-speed").dispatchEvent(new Event("click", { bubbles: true }));
-    expect(cb.onSpeed).toHaveBeenCalledWith(1);
+    // Speed and voice now open menus in the host, so they hand the click event
+    // (used to anchor the Obsidian Menu) straight through. No right-click gesture.
+    const speedClick = new MouseEvent("click", { bubbles: true });
+    q(".se-pill-speed").dispatchEvent(speedClick);
+    expect(cb.onSpeed).toHaveBeenCalledTimes(1);
+    expect(cb.onSpeed).toHaveBeenCalledWith(speedClick);
 
-    const ctx = new Event("contextmenu", { bubbles: true, cancelable: true });
-    q(".se-pill-speed").dispatchEvent(ctx);
-    expect(cb.onSpeed).toHaveBeenCalledWith(-1);
-    expect(ctx.defaultPrevented).toBe(true);
-
-    q(".se-pill-voice").dispatchEvent(new Event("click", { bubbles: true }));
+    const voiceClick = new MouseEvent("click", { bubbles: true });
+    q(".se-pill-voice").dispatchEvent(voiceClick);
     expect(cb.onVoice).toHaveBeenCalledTimes(1);
+    expect(cb.onVoice).toHaveBeenCalledWith(voiceClick);
 
     q(".se-pill-ear").dispatchEvent(new Event("click", { bubbles: true }));
     expect(cb.onListening).toHaveBeenCalledTimes(1);
 
     q(".se-pill-stop").dispatchEvent(new Event("click", { bubbles: true }));
     expect(cb.onStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("setVoiceLoading toggles a loading class and disables the voice button", () => {
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    const voice = container.querySelector(".se-pill-voice") as HTMLButtonElement;
+
+    pill.setVoiceLoading(true);
+    expect(voice.classList.contains("se-pill-voice-loading")).toBe(true);
+    expect(voice.hasAttribute("disabled")).toBe(true);
+
+    pill.setVoiceLoading(false);
+    expect(voice.classList.contains("se-pill-voice-loading")).toBe(false);
+    expect(voice.hasAttribute("disabled")).toBe(false);
   });
 
   it("setState swaps the play/pause glyph", () => {

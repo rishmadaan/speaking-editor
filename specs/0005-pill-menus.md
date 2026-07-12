@@ -1,6 +1,6 @@
 # 0005: Pill menus (pick speed and voice from the pill)
 
-Status: building
+Status: built (194 tests; live checks 16-17 pending the final armed run)
 Date: 2026-07-12
 Depends on: 0004. Rishabh: "make a pill player that has menus and stuff,
 like you click on it and then you change the speed or the voice right

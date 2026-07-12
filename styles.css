@@ -83,6 +83,12 @@
   color: var(--text-muted);
 }
 
+/* Transient state while the voice list resolves before the menu opens. */
+.se-pill .se-pill-voice-loading {
+  opacity: 0.5;
+  cursor: progress;
+}
+
 .se-pill .se-pill-ear-active {
   color: var(--interactive-accent);
 }

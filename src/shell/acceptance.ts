@@ -8,7 +8,8 @@ import { EditorView } from "@codemirror/view";
 import { syncField } from "./sync-field";
 import { ReadingSession } from "./session";
 import { WordEntry } from "./word-runs";
-import { nextPreset } from "./player-pill";
+import { SPEED_PRESETS } from "./player-pill";
+import { formatSpeedTitle } from "./pill-menus";
 import type SpeakingEditorPlugin from "./main";
 
 const REPORT = "skeleton-acceptance.md";
@@ -417,6 +418,23 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       return true;
     };
 
+    // Obsidian Menu helpers (spec 0005): the menu renders as `.menu` in the
+    // document with `.menu-item` rows (title in `.menu-item-title`); a click on a
+    // row fires its handler and closes the menu; Escape closes it without a pick.
+    const menuEl = () => document.querySelector(".menu") as HTMLElement | null;
+    const menuItems = (root: HTMLElement) =>
+      Array.from(root.querySelectorAll(".menu-item")) as HTMLElement[];
+    const itemTitle = (item: HTMLElement) =>
+      (item.querySelector(".menu-item-title") as HTMLElement | null)?.textContent ??
+      item.textContent ??
+      "";
+    const clickMenuItem = (item: HTMLElement) =>
+      item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const closeMenus = async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await waitUntil(() => menuEl() === null, 1000);
+    };
+
     // 11. Starting a session (plugin path) mounts exactly one pill inside that
     //     editor's container, and its play control reflects "playing".
     plugin.settings.speed = 1.0; // known preset so check 13 is deterministic
@@ -448,21 +466,25 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       `paused=${paused12} (glyph ${pauseGlyph}), resumed=${resumed12} (glyph ${resumeGlyph})`
     );
 
-    // 13. Clicking the speed control advances to the next preset: settings.speed
-    //     and the live audio playbackRate both change, and the label shows it.
-    const before13 = plugin.settings.speed;
-    const expected13 = nextPreset(before13, 1);
-    const clicked13 = clickPill(".se-pill-speed");
-    const settingApplied = await waitUntil(() => Math.abs(plugin.settings.speed - expected13) < 1e-9, 1500);
-    const audioApplied = await waitUntil(
-      () => plugin.acceptanceSession()?.audioPlaybackRates.some((r) => Math.abs(r - expected13) < 1e-9) ?? false,
-      1000
-    );
-    const speedLabel = (document.querySelector(".se-pill-speed") as HTMLElement | null)?.textContent ?? "";
+    // 13. Clicking the speed control opens the preset MENU rather than cycling a
+    //     preset in place: spec 0005 replaced the click-cycles gesture with a
+    //     menu. A `.menu` appears carrying the full preset grid plus the settings
+    //     escape hatch, opening it does NOT change settings.speed, and it closes
+    //     cleanly. Applying a pick from the menu is check 16.
+    const speedBefore13 = plugin.settings.speed;
+    const opened13 = clickPill(".se-pill-speed");
+    const menuUp13 = await waitUntil(() => menuEl() !== null, 1500);
+    const m13 = menuEl();
+    const titles13 = m13 ? menuItems(m13).map(itemTitle) : [];
+    const hasGrid13 = SPEED_PRESETS.every((p) => titles13.includes(formatSpeedTitle(p)));
+    const hasSettings13 = titles13.includes("Fine-tune in settings");
+    const noCycle13 = Math.abs(plugin.settings.speed - speedBefore13) < 1e-9;
+    await closeMenus();
+    const closed13 = menuEl() === null;
     check(
-      "clicking the pill speed control advances the preset (setting + live audio + label)",
-      clicked13 && settingApplied && audioApplied && speedLabel.includes(String(expected13)),
-      `${before13} -> ${plugin.settings.speed} (expected ${expected13}), rates=[${plugin.acceptanceSession()?.audioPlaybackRates.join(", ")}], label="${speedLabel}"`
+      "clicking the speed control opens the preset menu without cycling in place (spec 0005)",
+      opened13 && menuUp13 && hasGrid13 && hasSettings13 && noCycle13 && closed13,
+      `opened=${opened13}, grid=${hasGrid13}, settingsItem=${hasSettings13}, speed stayed ${plugin.settings.speed}, closed=${closed13}`
     );
 
     // 14. A user-like edit fades the pill (opacity < 1 within 200ms) and it
@@ -495,6 +517,85 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       "the pill stop control removes the pill entirely; a fresh play mounts a new one",
       clickedStop && removed15 && remounted15 && pillCount() === 1,
       `stopped=${clickedStop}, removedToZero=${removed15}, freshPills=${pillCount()}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // ─── Pill menu checks (spec 0005) ────────────────────────────────────────
+
+    // 16. Clicking the pill's speed control opens a menu whose checked item
+    //     matches settings.speed; choosing a different preset updates
+    //     settings.speed, the live audio rate, and the pill label, and closes.
+    plugin.settings.speed = 1.0; // known checked preset
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started16 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && !!pillEl(),
+      6000
+    );
+    clickPill(".se-pill-speed");
+    const menuUp16 = await waitUntil(() => menuEl() !== null, 1500);
+    const m16 = menuEl();
+    const items16 = m16 ? menuItems(m16) : [];
+    // the item titled with the current speed is the checked one (model-guaranteed)
+    const currentItem16 = items16.find((it) => itemTitle(it) === formatSpeedTitle(plugin.settings.speed));
+    const targetSpeed16 = 1.5;
+    const targetItem16 = items16.find((it) => itemTitle(it) === formatSpeedTitle(targetSpeed16));
+    if (targetItem16) clickMenuItem(targetItem16);
+    const applied16 = await waitUntil(() => Math.abs(plugin.settings.speed - targetSpeed16) < 1e-9, 1500);
+    const audio16 = await waitUntil(
+      () => plugin.acceptanceSession()?.audioPlaybackRates.some((r) => Math.abs(r - targetSpeed16) < 1e-9) ?? false,
+      1000
+    );
+    const label16 = (document.querySelector(".se-pill-speed") as HTMLElement | null)?.textContent ?? "";
+    const closed16 = await waitUntil(() => menuEl() === null, 1500);
+    check(
+      "clicking the speed control opens a menu and a preset pick applies (setting + live audio + label), then closes",
+      started16 && menuUp16 && !!currentItem16 && !!targetItem16 && applied16 && audio16 &&
+        label16.includes(formatSpeedTitle(targetSpeed16)) && closed16,
+      `checked=${currentItem16 ? itemTitle(currentItem16) : "none"}, speed=${plugin.settings.speed} (target ${targetSpeed16}), rates=[${plugin.acceptanceSession()?.audioPlaybackRates.join(", ")}], label="${label16}", closed=${closed16}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 17. Clicking the pill's voice control opens a menu with at least the active
+    //     provider section and one voice item; choosing a different voice lands
+    //     the session paused-primed (0003's contract) and the pill label updates.
+    plugin.settings.providerId = "edge";
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started17 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && !!pillEl(),
+      6000
+    );
+    const voiceLabelBefore17 = (document.querySelector(".se-pill-voice") as HTMLElement | null)?.textContent ?? "";
+    clickPill(".se-pill-voice");
+    // The voice list resolves asynchronously (Edge fetch) BEFORE the menu shows.
+    const menuUp17 = await waitUntil(() => menuEl() !== null, 8000);
+    const m17 = menuEl();
+    const rows17 = m17
+      ? (Array.from(m17.querySelectorAll(".menu-item, .menu-separator")) as HTMLElement[])
+      : [];
+    const sepIdx17 = rows17.findIndex((el) => el.classList.contains("menu-separator"));
+    const providerItems17 = (sepIdx17 >= 0 ? rows17.slice(0, sepIdx17) : rows17).filter((el) =>
+      el.classList.contains("menu-item")
+    );
+    const voiceItems17 = (sepIdx17 >= 0 ? rows17.slice(sepIdx17 + 1) : []).filter((el) =>
+      el.classList.contains("menu-item")
+    );
+    const hasProvider17 = providerItems17.some((it) => itemTitle(it).startsWith("Edge"));
+    const hasVoices17 = voiceItems17.length >= 1;
+    // pick a voice whose label differs from the one currently shown on the pill
+    const targetVoice17 =
+      voiceItems17.find((it) => itemTitle(it) && itemTitle(it) !== voiceLabelBefore17) ?? voiceItems17[0];
+    const targetLabel17 = targetVoice17 ? itemTitle(targetVoice17) : "";
+    if (targetVoice17) clickMenuItem(targetVoice17);
+    const primedPaused17 = await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 8000);
+    const labelUpdated17 = await waitUntil(
+      () => ((document.querySelector(".se-pill-voice") as HTMLElement | null)?.textContent ?? "") === targetLabel17,
+      2000
+    );
+    const closed17 = await waitUntil(() => menuEl() === null, 1500);
+    check(
+      "clicking the voice control opens the provider+voice menu; a voice pick lands paused-primed and updates the label",
+      started17 && menuUp17 && hasProvider17 && hasVoices17 && !!targetVoice17 && primedPaused17 && labelUpdated17 && closed17,
+      `providers=${providerItems17.length}, voices=${voiceItems17.length}, picked="${targetLabel17}", state=${plugin.acceptanceSession()?.state}, label="${(document.querySelector(".se-pill-voice") as HTMLElement | null)?.textContent}", closed=${closed17}`
     );
     plugin.acceptanceDisposeSession();
 

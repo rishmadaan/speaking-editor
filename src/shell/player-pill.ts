@@ -32,12 +32,13 @@ export function nextPreset(current: number, direction: 1 | -1): number {
   return SPEED_PRESETS[idx];
 }
 
-// The five things the pill can do; the host owns what each one means.
+// The five things the pill can do; the host owns what each one means. Speed and
+// voice open Obsidian menus in the host, so they hand their click event straight
+// through for the host to anchor the menu at the button.
 export interface PlayerPillCallbacks {
   onPlayPause(): void;
-  // +1 on a plain click (faster), -1 on right-click (slower).
-  onSpeed(direction: 1 | -1): void;
-  onVoice(): void;
+  onSpeed(evt: MouseEvent): void;
+  onVoice(evt: MouseEvent): void;
   onListening(): void;
   onStop(): void;
 }
@@ -119,6 +120,14 @@ export class PlayerPill {
     this.voiceBtn.setAttribute("title", label);
   }
 
+  // A transient loading state while the voice list resolves: dims the button and
+  // disables it so a second click cannot fire a second fetch mid-flight.
+  setVoiceLoading(on: boolean): void {
+    this.voiceBtn.classList.toggle("se-pill-voice-loading", on);
+    if (on) this.voiceBtn.setAttribute("disabled", "");
+    else this.voiceBtn.removeAttribute("disabled");
+  }
+
   setListening(on: boolean): void {
     this.earBtn.classList.toggle("se-pill-ear-active", on);
     this.earBtn.classList.toggle("se-pill-ear-off", !on);
@@ -150,15 +159,11 @@ export class PlayerPill {
     this.playBtn = this.makeControl("se-pill-play", "Play or pause");
     this.playBtn.addEventListener("click", () => this.cb.onPlayPause());
 
-    this.speedBtn = this.makeControl("se-pill-speed", "Reading speed (right-click to slow)");
-    this.speedBtn.addEventListener("click", () => this.cb.onSpeed(1));
-    this.speedBtn.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      this.cb.onSpeed(-1);
-    });
+    this.speedBtn = this.makeControl("se-pill-speed", "Reading speed");
+    this.speedBtn.addEventListener("click", (e) => this.cb.onSpeed(e));
 
     this.voiceBtn = this.makeControl("se-pill-voice", "Change voice");
-    this.voiceBtn.addEventListener("click", () => this.cb.onVoice());
+    this.voiceBtn.addEventListener("click", (e) => this.cb.onVoice(e));
 
     this.earBtn = this.makeControl("se-pill-ear", "Listening mode");
     this.earBtn.addEventListener("click", () => this.cb.onListening());

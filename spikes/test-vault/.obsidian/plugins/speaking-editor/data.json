@@ -1,6 +1,6 @@
 {
   "providerId": "edge",
   "voiceByProvider": {},
-  "speed": 1,
+  "speed": 1.5,
   "listeningMode": true
 }

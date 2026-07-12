@@ -18859,15 +18859,6 @@ var import_view3 = require("@codemirror/view");
 
 // src/shell/player-pill.ts
 var SPEED_PRESETS = [0.8, 1, 1.2, 1.5, 2, 2.5, 3];
-function nextPreset(current, direction) {
-  let n = SPEED_PRESETS.length, closest = 0, best = 1 / 0;
-  for (let i = 0; i < n; i++) {
-    let d = Math.abs(SPEED_PRESETS[i] - current);
-    d < best && (best = d, closest = i);
-  }
-  let idx = (closest + direction + n) % n;
-  return SPEED_PRESETS[idx];
-}
 var FADE_RESTORE_MS = 1500, FALLBACK_GLYPH = {
   play: "\u25B6",
   // right-pointing triangle
@@ -18909,6 +18900,11 @@ var PlayerPill = class {
   setVoiceLabel(label) {
     this.voiceBtn.textContent = label, this.voiceBtn.setAttribute("title", label);
   }
+  // A transient loading state while the voice list resolves: dims the button and
+  // disables it so a second click cannot fire a second fetch mid-flight.
+  setVoiceLoading(on) {
+    this.voiceBtn.classList.toggle("se-pill-voice-loading", on), on ? this.voiceBtn.setAttribute("disabled", "") : this.voiceBtn.removeAttribute("disabled");
+  }
   setListening(on) {
     this.earBtn.classList.toggle("se-pill-ear-active", on), this.earBtn.classList.toggle("se-pill-ear-off", !on);
   }
@@ -18923,9 +18919,7 @@ var PlayerPill = class {
   }
   // ─── Internals ───────────────────────────────────────────────────────────────
   buildControls() {
-    this.playBtn = this.makeControl("se-pill-play", "Play or pause"), this.playBtn.addEventListener("click", () => this.cb.onPlayPause()), this.speedBtn = this.makeControl("se-pill-speed", "Reading speed (right-click to slow)"), this.speedBtn.addEventListener("click", () => this.cb.onSpeed(1)), this.speedBtn.addEventListener("contextmenu", (e) => {
-      e.preventDefault(), this.cb.onSpeed(-1);
-    }), this.voiceBtn = this.makeControl("se-pill-voice", "Change voice"), this.voiceBtn.addEventListener("click", () => this.cb.onVoice()), this.earBtn = this.makeControl("se-pill-ear", "Listening mode"), this.earBtn.addEventListener("click", () => this.cb.onListening()), this.stopBtn = this.makeControl("se-pill-stop", "Stop reading"), this.stopBtn.addEventListener("click", () => this.cb.onStop());
+    this.playBtn = this.makeControl("se-pill-play", "Play or pause"), this.playBtn.addEventListener("click", () => this.cb.onPlayPause()), this.speedBtn = this.makeControl("se-pill-speed", "Reading speed"), this.speedBtn.addEventListener("click", (e) => this.cb.onSpeed(e)), this.voiceBtn = this.makeControl("se-pill-voice", "Change voice"), this.voiceBtn.addEventListener("click", (e) => this.cb.onVoice(e)), this.earBtn = this.makeControl("se-pill-ear", "Listening mode"), this.earBtn.addEventListener("click", () => this.cb.onListening()), this.stopBtn = this.makeControl("se-pill-stop", "Stop reading"), this.stopBtn.addEventListener("click", () => this.cb.onStop());
   }
   makeControl(cls, aria) {
     let b = document.createElement("button");
@@ -18938,6 +18932,74 @@ var PlayerPill = class {
     this.fadeTimer != null && (clearTimeout(this.fadeTimer), this.fadeTimer = null), this.root.classList.remove("se-pill-faded");
   }
 };
+
+// src/shell/pill-menus.ts
+var SPEED_EPS = 1e-9;
+function formatSpeedTitle(rate) {
+  return `${Number(rate.toFixed(2))}x`;
+}
+function speedMenuModel(currentSpeed) {
+  let items = SPEED_PRESETS.map((speed) => ({
+    title: formatSpeedTitle(speed),
+    checked: Math.abs(speed - currentSpeed) < SPEED_EPS,
+    action: { type: "apply-speed", speed }
+  }));
+  return items.push({ title: "Fine-tune in settings", checked: !1, action: { type: "open-settings" } }), items;
+}
+function voiceMenuModel(providers, activeId, voices, currentVoice, hasKey) {
+  return {
+    providers: providers.map((p) => {
+      let needsKey = p.requiresKey && !hasKey(p.id);
+      return {
+        id: p.id,
+        title: needsKey ? `${p.label} (needs key)` : p.label,
+        checked: p.id === activeId,
+        needsKey
+      };
+    }),
+    voices: voices.map((v) => ({
+      id: v.id,
+      title: v.label,
+      checked: v.id === currentVoice
+    }))
+  };
+}
+function renderSpeedMenu(menu, items, handlers) {
+  for (let item of items) {
+    let action = item.action;
+    action.type === "open-settings" && menu.addSeparator(), menu.addItem((mi) => {
+      mi.setTitle(item.title), action.type === "apply-speed" && mi.setChecked(item.checked), mi.onClick(() => {
+        action.type === "apply-speed" ? handlers.applySpeed(action.speed) : handlers.openSettings();
+      });
+    });
+  }
+}
+function renderVoiceMenu(menu, model, handlers) {
+  for (let p of model.providers)
+    menu.addItem((mi) => {
+      mi.setTitle(p.title).setChecked(p.checked).onClick(() => {
+        p.needsKey ? handlers.openSettings() : handlers.applyProvider(p.id);
+      });
+    });
+  model.voices.length > 0 && menu.addSeparator();
+  for (let v of model.voices)
+    menu.addItem((mi) => {
+      mi.setTitle(v.title).setChecked(v.checked).onClick(() => handlers.applyVoice(v.id));
+    });
+}
+async function openVoiceMenu(deps) {
+  deps.setVoiceLoading(!0);
+  let voices;
+  try {
+    voices = await deps.voiceCache.resolve(deps.activeProviderId, () => deps.provider.listVoices());
+  } catch {
+    voices = [{ id: deps.provider.defaultVoice, label: deps.provider.defaultVoice }];
+  } finally {
+    deps.setVoiceLoading(!1);
+  }
+  let model = voiceMenuModel(deps.providers, deps.activeProviderId, voices, deps.currentVoice, deps.hasKey), menu = deps.buildMenu();
+  renderVoiceMenu(menu, model, deps.handlers), deps.showMenu(menu);
+}
 
 // src/shell/acceptance.ts
 var REPORT = "skeleton-acceptance.md", NOTE = "Skeleton Note.md", FIXTURE = `---
@@ -19195,6 +19257,8 @@ ARMED: waiting for the window to become visible (10 minute limit)...
     let pillEl = () => document.querySelector(".se-pill"), pillCount = () => document.querySelectorAll(".se-pill").length, clickPill = (sel) => {
       let el = document.querySelector(sel);
       return el ? (el.dispatchEvent(new MouseEvent("click", { bubbles: !0 })), !0) : !1;
+    }, menuEl = () => document.querySelector(".menu"), menuItems = (root) => Array.from(root.querySelectorAll(".menu-item")), itemTitle = (item) => item.querySelector(".menu-item-title")?.textContent ?? item.textContent ?? "", clickMenuItem = (item) => item.dispatchEvent(new MouseEvent("click", { bubbles: !0 })), closeMenus = async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: !0 })), await waitUntil(() => menuEl() === null, 1e3);
     };
     plugin.settings.speed = 1, plugin.acceptanceStartSession(cm, NOTE);
     let started11 = await waitUntil(
@@ -19212,14 +19276,13 @@ ARMED: waiting for the window to become visible (10 minute limit)...
       clickedPause && paused12 && pauseGlyph === "play" && clickedResume && resumed12 && resumeGlyph === "pause",
       `paused=${paused12} (glyph ${pauseGlyph}), resumed=${resumed12} (glyph ${resumeGlyph})`
     );
-    let before13 = plugin.settings.speed, expected13 = nextPreset(before13, 1), clicked13 = clickPill(".se-pill-speed"), settingApplied = await waitUntil(() => Math.abs(plugin.settings.speed - expected13) < 1e-9, 1500), audioApplied = await waitUntil(
-      () => plugin.acceptanceSession()?.audioPlaybackRates.some((r) => Math.abs(r - expected13) < 1e-9) ?? !1,
-      1e3
-    ), speedLabel = document.querySelector(".se-pill-speed")?.textContent ?? "";
+    let speedBefore13 = plugin.settings.speed, opened13 = clickPill(".se-pill-speed"), menuUp13 = await waitUntil(() => menuEl() !== null, 1500), m13 = menuEl(), titles13 = m13 ? menuItems(m13).map(itemTitle) : [], hasGrid13 = SPEED_PRESETS.every((p) => titles13.includes(formatSpeedTitle(p))), hasSettings13 = titles13.includes("Fine-tune in settings"), noCycle13 = Math.abs(plugin.settings.speed - speedBefore13) < 1e-9;
+    await closeMenus();
+    let closed13 = menuEl() === null;
     check(
-      "clicking the pill speed control advances the preset (setting + live audio + label)",
-      clicked13 && settingApplied && audioApplied && speedLabel.includes(String(expected13)),
-      `${before13} -> ${plugin.settings.speed} (expected ${expected13}), rates=[${plugin.acceptanceSession()?.audioPlaybackRates.join(", ")}], label="${speedLabel}"`
+      "clicking the speed control opens the preset menu without cycling in place (spec 0005)",
+      opened13 && menuUp13 && hasGrid13 && hasSettings13 && noCycle13 && closed13,
+      `opened=${opened13}, grid=${hasGrid13}, settingsItem=${hasSettings13}, speed stayed ${plugin.settings.speed}, closed=${closed13}`
     ), cm.dispatch({ changes: { from: 0, insert: "Z " } });
     let faded14 = await waitUntil(() => {
       let el = pillEl();
@@ -19239,10 +19302,46 @@ ARMED: waiting for the window to become visible (10 minute limit)...
       () => plugin.acceptanceSession()?.state === "playing" && pillCount() === 1,
       6e3
     );
-    if (check(
+    check(
       "the pill stop control removes the pill entirely; a fresh play mounts a new one",
       clickedStop && removed15 && remounted15 && pillCount() === 1,
       `stopped=${clickedStop}, removedToZero=${removed15}, freshPills=${pillCount()}`
+    ), plugin.acceptanceDisposeSession(), plugin.settings.speed = 1, plugin.acceptanceStartSession(cm, NOTE);
+    let started16 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && !!pillEl(),
+      6e3
+    );
+    clickPill(".se-pill-speed");
+    let menuUp16 = await waitUntil(() => menuEl() !== null, 1500), m16 = menuEl(), items16 = m16 ? menuItems(m16) : [], currentItem16 = items16.find((it) => itemTitle(it) === formatSpeedTitle(plugin.settings.speed)), targetSpeed16 = 1.5, targetItem16 = items16.find((it) => itemTitle(it) === formatSpeedTitle(targetSpeed16));
+    targetItem16 && clickMenuItem(targetItem16);
+    let applied16 = await waitUntil(() => Math.abs(plugin.settings.speed - targetSpeed16) < 1e-9, 1500), audio16 = await waitUntil(
+      () => plugin.acceptanceSession()?.audioPlaybackRates.some((r) => Math.abs(r - targetSpeed16) < 1e-9) ?? !1,
+      1e3
+    ), label16 = document.querySelector(".se-pill-speed")?.textContent ?? "", closed16 = await waitUntil(() => menuEl() === null, 1500);
+    check(
+      "clicking the speed control opens a menu and a preset pick applies (setting + live audio + label), then closes",
+      started16 && menuUp16 && !!currentItem16 && !!targetItem16 && applied16 && audio16 && label16.includes(formatSpeedTitle(targetSpeed16)) && closed16,
+      `checked=${currentItem16 ? itemTitle(currentItem16) : "none"}, speed=${plugin.settings.speed} (target ${targetSpeed16}), rates=[${plugin.acceptanceSession()?.audioPlaybackRates.join(", ")}], label="${label16}", closed=${closed16}`
+    ), plugin.acceptanceDisposeSession(), plugin.settings.providerId = "edge", plugin.acceptanceStartSession(cm, NOTE);
+    let started17 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && !!pillEl(),
+      6e3
+    ), voiceLabelBefore17 = document.querySelector(".se-pill-voice")?.textContent ?? "";
+    clickPill(".se-pill-voice");
+    let menuUp17 = await waitUntil(() => menuEl() !== null, 8e3), m17 = menuEl(), rows17 = m17 ? Array.from(m17.querySelectorAll(".menu-item, .menu-separator")) : [], sepIdx17 = rows17.findIndex((el) => el.classList.contains("menu-separator")), providerItems17 = (sepIdx17 >= 0 ? rows17.slice(0, sepIdx17) : rows17).filter(
+      (el) => el.classList.contains("menu-item")
+    ), voiceItems17 = (sepIdx17 >= 0 ? rows17.slice(sepIdx17 + 1) : []).filter(
+      (el) => el.classList.contains("menu-item")
+    ), hasProvider17 = providerItems17.some((it) => itemTitle(it).startsWith("Edge")), hasVoices17 = voiceItems17.length >= 1, targetVoice17 = voiceItems17.find((it) => itemTitle(it) && itemTitle(it) !== voiceLabelBefore17) ?? voiceItems17[0], targetLabel17 = targetVoice17 ? itemTitle(targetVoice17) : "";
+    targetVoice17 && clickMenuItem(targetVoice17);
+    let primedPaused17 = await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 8e3), labelUpdated17 = await waitUntil(
+      () => (document.querySelector(".se-pill-voice")?.textContent ?? "") === targetLabel17,
+      2e3
+    ), closed17 = await waitUntil(() => menuEl() === null, 1500);
+    if (check(
+      "clicking the voice control opens the provider+voice menu; a voice pick lands paused-primed and updates the label",
+      started17 && menuUp17 && hasProvider17 && hasVoices17 && !!targetVoice17 && primedPaused17 && labelUpdated17 && closed17,
+      `providers=${providerItems17.length}, voices=${voiceItems17.length}, picked="${targetLabel17}", state=${plugin.acceptanceSession()?.state}, label="${document.querySelector(".se-pill-voice")?.textContent}", closed=${closed17}`
     ), plugin.acceptanceDisposeSession(), hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
@@ -19668,10 +19767,10 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
     this.pill = new PlayerPill(
       {
         onPlayPause: () => this.session?.playPause(),
-        onSpeed: (dir) => {
-          this.applySpeed(nextPreset(this.settings.speed, dir));
+        onSpeed: (evt) => this.showSpeedMenu(evt),
+        onVoice: (evt) => {
+          this.showVoiceMenu(evt);
         },
-        onVoice: () => this.openSettingsTab(),
         onListening: () => {
           this.toggleListeningMode();
         },
@@ -19692,6 +19791,45 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
   openSettingsTab() {
     let setting = this.app.setting;
     setting.open(), setting.openTabById(this.manifest.id);
+  }
+  // ─── Pill menus (spec 0005) ──────────────────────────────────────────────────
+  // Speed control: a native menu of the presets anchored at the button, the
+  // current speed checked, picks routed through applySpeed (persist + live audio
+  // + label), plus a "Fine-tune in settings" escape hatch.
+  showSpeedMenu(evt) {
+    let menu = new import_obsidian2.Menu();
+    renderSpeedMenu(menu, speedMenuModel(this.settings.speed), {
+      applySpeed: (speed) => {
+        this.applySpeed(speed);
+      },
+      openSettings: () => this.openSettingsTab()
+    }), menu.showAtMouseEvent(evt);
+  }
+  // Voice control: the async two-section menu (providers + the active provider's
+  // voices). The voice list resolves through the cache first, fetching with a
+  // brief loading state on the pill when uncached, before the menu shows.
+  async showVoiceMenu(evt) {
+    let providerId = this.settings.providerId, provider = buildProvider(providerId, this.keyStore), currentVoice = voiceForProvider(this.settings, providerId, provider.defaultVoice);
+    await openVoiceMenu({
+      activeProviderId: providerId,
+      provider,
+      voiceCache: this.voiceCache,
+      providers: availableProviders2(),
+      currentVoice,
+      hasKey: (id) => this.keyStore.has(id),
+      handlers: {
+        applyProvider: (id) => {
+          this.applyProvider(id);
+        },
+        applyVoice: (voice) => {
+          this.applyVoice(providerId, voice);
+        },
+        openSettings: () => this.openSettingsTab()
+      },
+      setVoiceLoading: (on) => this.pill?.setVoiceLoading(on),
+      buildMenu: () => new import_obsidian2.Menu(),
+      showMenu: (menu) => menu.showAtMouseEvent(evt)
+    });
   }
   // A doc-changing edit on the session editor politely fades the pill.
   onEditorUpdate(update) {
