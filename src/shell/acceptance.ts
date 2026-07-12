@@ -7,6 +7,8 @@ import { App, MarkdownView, TFile } from "obsidian";
 import { EditorView } from "@codemirror/view";
 import { syncField } from "./sync-field";
 import { ReadingSession } from "./session";
+import { WordEntry } from "./word-runs";
+import type SpeakingEditorPlugin from "./main";
 
 const REPORT = "skeleton-acceptance.md";
 const NOTE = "Skeleton Note.md";
@@ -43,9 +45,12 @@ async function waitUntil(pred: () => boolean, timeoutMs: number, step = 50): Pro
 
 interface Check { name: string; pass: boolean; detail: string }
 
-export async function runAcceptance(app: App): Promise<void> {
+export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Promise<void> {
   const lines: string[] = [`# Skeleton acceptance report`, ``];
   const checks: Check[] = [];
+  // Snapshot settings so the control-surface checks (which mutate provider/voice/
+  // listening mode) restore them at the end and repeat runs stay stable.
+  const settingsSnapshot = JSON.stringify(plugin.settings);
   const write = () => app.vault.adapter.write(REPORT, lines.join("\n") + "\n");
   // write after every check so a mid-run hang or abort never loses the trail
   const check = (name: string, pass: boolean, detail: string) => {
@@ -67,13 +72,31 @@ export async function runAcceptance(app: App): Promise<void> {
     );
 
     // The checks measure a rAF-driven loop; Chromium pauses rAF entirely in a
-    // hidden window, which would produce misleading FAILs. Refuse to run blind.
+    // hidden window, which would produce misleading FAILs. Instead of refusing,
+    // arm and wait (up to 10 minutes) for the window to become visible, so the
+    // run can be fired remotely and starts the moment a human brings it up.
     window.focus();
     await sleep(300);
     if (document.visibilityState === "hidden") {
-      lines.splice(2, 0, `RESULT: BLOCKED`, ``, `The Obsidian window is hidden (occluded or minimized), so`, `requestAnimationFrame is paused and UI-sync checks cannot run.`, `Bring the test-vault window to the front and rerun.`);
-      await write();
-      return;
+      lines.push(`(Window was hidden when fired; waited for visibility.)`, ``);
+      await app.vault.adapter.write(REPORT, `# Skeleton acceptance report\n\nARMED: waiting for the window to become visible (10 minute limit)...\n`);
+      const visible = await new Promise<boolean>((res) => {
+        const timeout = setTimeout(() => { document.removeEventListener("visibilitychange", on); res(false); }, 600000);
+        const on = () => {
+          if (document.visibilityState === "visible") {
+            clearTimeout(timeout);
+            document.removeEventListener("visibilitychange", on);
+            res(true);
+          }
+        };
+        document.addEventListener("visibilitychange", on);
+      });
+      if (!visible) {
+        lines.splice(2, 0, `RESULT: BLOCKED`, ``, `The window never became visible within 10 minutes, so the`, `rAF-driven checks could not run. Open the test vault and rerun.`);
+        await write();
+        return;
+      }
+      await sleep(500); // let the compositor settle before measuring frames
     }
 
     // Open the fixture note in live preview and reach its EditorView
@@ -258,6 +281,135 @@ export async function runAcceptance(app: App): Promise<void> {
       `words=${field().words.length}, word=${field().word}, state=${session.state}, frozen after 500ms=${stayedFrozen}`
     );
 
+    // ─── Control-surface checks (spec 0003) ──────────────────────────────────
+    // Retire the skeleton session; checks 8 to 10 drive fresh ones.
+    session.dispose();
+    session = null;
+
+    // Dispatch a real mousedown on a word so the plugin's registered click
+    // handler (which consults listeningMode) fires, exactly as a user click would.
+    const clickWord = async (e: WordEntry): Promise<boolean> => {
+      const midPos = Math.floor((e.runs[0].from + e.runs[0].to) / 2);
+      cm.dispatch({ effects: EditorView.scrollIntoView(midPos) });
+      await sleep(120);
+      const c = cm.coordsAtPos(midPos);
+      if (!c) return false;
+      cm.contentDOM.dispatchEvent(
+        new MouseEvent("mousedown", {
+          clientX: (c.left + c.right) / 2 || c.left + 1,
+          clientY: (c.top + c.bottom) / 2,
+          bubbles: true,
+        })
+      );
+      return true;
+    };
+
+    // 8. Speed change during playback reaches the live audio playbackRate within
+    //    500ms without a session restart (same session object).
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      speed: 1.0,
+      onState: (s) => { lastState = s; },
+    });
+    session.playPause();
+    const playing8 = await waitUntil(() => session!.state === "playing", 6000);
+    const sameSession = session;
+    session.setSpeed(2.0);
+    const rateApplied = await waitUntil(() => session!.audioPlaybackRates.some((r) => r === 2.0), 500);
+    check(
+      "speed change during playback reaches the live audio within 500ms (same session)",
+      playing8 && rateApplied && session === sameSession,
+      `playing=${playing8}, rates=[${session.audioPlaybackRates.join(", ")}], sameSession=${session === sameSession}`
+    );
+    session.dispose();
+    session = null;
+
+    // 9. Listening mode gates click-to-seek, driven through the REAL click path:
+    //    OFF -> a click does not move the current word; ON -> the same click seeks.
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started9 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      6000
+    );
+    // pause so natural progression cannot confound the click assertions
+    plugin.acceptanceSession()?.playPause();
+    await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 1500);
+    const frozenWord = field().word;
+    const clickable = field().words.filter((e) => e.runs.length > 0);
+    const target9 = clickable[Math.min(clickable.length - 1, 20)];
+
+    plugin.settings.listeningMode = false;
+    const off1 = await clickWord(target9);
+    await sleep(350);
+    const offWord = field().word;
+    const stayedOff = offWord === frozenWord;
+
+    plugin.settings.listeningMode = true;
+    const on1 = await clickWord(target9);
+    const movedOn = await waitUntil(
+      () => field().word === target9.index || field().word === target9.index + 1,
+      1500
+    );
+    check(
+      "listening mode gates click-to-seek (off: no move, on: seeks to the clicked word)",
+      started9 && off1 && on1 && stayedOff && movedOn,
+      `frozen=${frozenWord}, off stayed at ${offWord}, on reached ${field().word}, target=${target9.index} ("${target9.text}")`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 10. Voice change during playback lands PAUSED primed at the captured word,
+    //     and a subsequent play resumes there with the new voice.
+    const voiceA = "en-US-AriaNeural";
+    const voiceB = "en-US-GuyNeural";
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      voice: voiceA,
+      speed: 1.0,
+      onState: (s) => { lastState = s; },
+    });
+    session.playPause();
+    const playing10 = await waitUntil(() => session!.state === "playing" && field().word >= 0, 6000);
+    const capturedWord = field().word;
+    const capturedSentence = field().sentence;
+    // reconfigure in place: dispose, rebuild primed PAUSED at the captured word
+    session.dispose();
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      voice: voiceB,
+      speed: 1.0,
+      primeAtWord: capturedWord,
+      onState: (s) => { lastState = s; },
+    });
+    const primedPaused = await waitUntil(() => session!.state === "paused", 6000);
+    const sentenceWords10 = field()
+      .words.filter((e) => e.sentence === capturedSentence && e.runs.length > 0)
+      .map((e) => e.index);
+    const firstWord10 = sentenceWords10.length ? Math.min(...sentenceWords10) : capturedWord;
+    session.playPause(); // resume
+    const resumed = await waitUntil(
+      () =>
+        session!.state === "playing" &&
+        (field().word === capturedWord || field().word === firstWord10 || field().word === firstWord10 + 1),
+      6000
+    );
+    check(
+      "voice change primes paused at the captured word; play resumes there with the new voice",
+      playing10 && primedPaused && resumed,
+      `captured=${capturedWord} (sentence ${capturedSentence}, start ${firstWord10}), primedPaused=${primedPaused}, resumedAt=${field().word}, newVoice=${voiceB}`
+    );
+
+    if (hiddenMidRun()) {
+      lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the control-surface checks; rAF-driven`, `measurements are invalid. Keep the window visible and rerun.`);
+      await write();
+      return;
+    }
+
     const allPass = checks.every((c) => c.pass);
     lines.splice(
       2,
@@ -275,5 +427,17 @@ export async function runAcceptance(app: App): Promise<void> {
     }
   } finally {
     session?.dispose();
+    plugin.acceptanceDisposeSession();
+    // Restore settings to their pre-run values so repeat runs are stable.
+    try {
+      const snap = JSON.parse(settingsSnapshot);
+      plugin.settings.providerId = snap.providerId;
+      plugin.settings.voiceByProvider = snap.voiceByProvider;
+      plugin.settings.speed = snap.speed;
+      plugin.settings.listeningMode = snap.listeningMode;
+      await plugin.saveSettings();
+    } catch {
+      /* restoring settings is best-effort; never mask the run's own outcome */
+    }
   }
 }

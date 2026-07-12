@@ -9642,7 +9642,7 @@ var require_populate = __commonJS({
 var require_form_data = __commonJS({
   "node_modules/form-data/lib/form_data.js"(exports2, module2) {
     "use strict";
-    var CombinedStream = require_combined_stream(), util = require("util"), path = require("path"), http = require("http"), https = require("https"), parseUrl = require("url").parse, fs2 = require("fs"), Stream = require("stream").Stream, crypto2 = require("crypto"), mime = require_mime_types(), asynckit = require_asynckit(), setToStringTag = require_es_set_tostringtag(), hasOwn = require_hasown(), populate = require_populate();
+    var CombinedStream = require_combined_stream(), util = require("util"), path = require("path"), http = require("http"), https = require("https"), parseUrl = require("url").parse, fs3 = require("fs"), Stream = require("stream").Stream, crypto2 = require("crypto"), mime = require_mime_types(), asynckit = require_asynckit(), setToStringTag = require_es_set_tostringtag(), hasOwn = require_hasown(), populate = require_populate();
     function escapeHeaderParam(str) {
       return String(str).replace(/\r/g, "%0D").replace(/\n/g, "%0A").replace(/"/g, "%22");
     }
@@ -9672,7 +9672,7 @@ var require_form_data = __commonJS({
       options.knownLength != null ? valueLength += Number(options.knownLength) : Buffer.isBuffer(value) ? valueLength = value.length : typeof value == "string" && (valueLength = Buffer.byteLength(value)), this._valueLength += valueLength, this._overheadLength += Buffer.byteLength(header) + FormData2.LINE_BREAK.length, !(!value || !value.path && !(value.readable && hasOwn(value, "httpVersion")) && !(value instanceof Stream)) && (options.knownLength || this._valuesToMeasure.push(value));
     };
     FormData2.prototype._lengthRetriever = function(value, callback) {
-      hasOwn(value, "fd") ? value.end != null && value.end != 1 / 0 && value.start != null ? callback(null, value.end + 1 - (value.start ? value.start : 0)) : fs2.stat(value.path, function(err, stat) {
+      hasOwn(value, "fd") ? value.end != null && value.end != 1 / 0 && value.start != null ? callback(null, value.end + 1 - (value.start ? value.start : 0)) : fs3.stat(value.path, function(err, stat) {
         if (err) {
           callback(err);
           return;
@@ -10281,7 +10281,7 @@ var require_promisify = __commonJS({
   "node_modules/agent-base/dist/src/promisify.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: !0 });
-    function promisify(fn) {
+    function promisify2(fn) {
       return function(req, opts) {
         return new Promise((resolve, reject) => {
           fn.call(this, req, opts, (err, rtn) => {
@@ -10290,7 +10290,7 @@ var require_promisify = __commonJS({
         });
       };
     }
-    exports2.default = promisify;
+    exports2.default = promisify2;
   }
 });
 
@@ -17719,7 +17719,7 @@ var require_MsEdgeTTS = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: !0 });
     exports2.MsEdgeTTS = exports2.MetadataOptions = void 0;
-    var axios_1 = __importDefault(require_axios()), isomorphic_ws_1 = __importDefault(require_node2()), index_1 = require_buffer(), Output_1 = require_Output(), stream_1 = require("stream"), fs2 = __importStar(require("fs")), Prosody_1 = require_Prosody(), utils_1 = require_utils(), MetadataOptions = class {
+    var axios_1 = __importDefault(require_axios()), isomorphic_ws_1 = __importDefault(require_node2()), index_1 = require_buffer(), Output_1 = require_Output(), stream_1 = require("stream"), fs3 = __importStar(require("fs")), Prosody_1 = require_Prosody(), utils_1 = require_utils(), MetadataOptions = class {
       /**
        * (optional) any voice locale that is supported by the voice. See the list of all voices for compatibility. If not provided, the locale will be inferred from the `voiceName`.
        * Changing the voiceName will reset the voiceLocale.
@@ -17945,11 +17945,11 @@ Path:${messageTypes.SPEECH_CONFIG}${_MsEdgeTTS.JSON_XML_DELIM}
         try {
           return await Promise.all([
             new Promise((resolve, reject) => {
-              let writableAudioFile = audioStream.pipe(fs2.createWriteStream(audioFilePath));
+              let writableAudioFile = audioStream.pipe(fs3.createWriteStream(audioFilePath));
               audioStream.once("error", (e) => {
                 writableAudioFile.destroy(), reject(e);
               }), writableAudioFile.once("close", async () => {
-                writableAudioFile.bytesWritten > 0 ? resolve(audioFilePath) : (reject(new Error("No audio data received")), fs2.unlinkSync(audioFilePath));
+                writableAudioFile.bytesWritten > 0 ? resolve(audioFilePath) : (reject(new Error("No audio data received")), fs3.unlinkSync(audioFilePath));
               }), writableAudioFile.once("error", reject);
             }),
             new Promise((resolve, reject) => {
@@ -17960,7 +17960,7 @@ Path:${messageTypes.SPEECH_CONFIG}${_MsEdgeTTS.JSON_XML_DELIM}
                 let chunkObj = JSON.parse(chunk.toString());
                 metadataItems.Metadata.push(...chunkObj.Metadata);
               }), metadataStream.once("close", () => {
-                metadataItems.Metadata.length > 0 ? (fs2.writeFileSync(metadataFilePath, JSON.stringify(metadataItems, null, 2)), resolve(metadataFilePath)) : (reject(new Error("No metadata received")), fs2.unlinkSync(metadataFilePath));
+                metadataItems.Metadata.length > 0 ? (fs3.writeFileSync(metadataFilePath, JSON.stringify(metadataItems, null, 2)), resolve(metadataFilePath)) : (reject(new Error("No metadata received")), fs3.unlinkSync(metadataFilePath));
               }), metadataStream.once("error", reject);
             })
           ]), { audioFilePath, metadataFilePath, requestId };
@@ -18029,7 +18029,7 @@ __export(main_exports, {
   default: () => SpeakingEditorPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian = require("obsidian");
+var import_obsidian2 = require("obsidian");
 
 // src/shell/sync-field.ts
 var import_state = require("@codemirror/state"), import_view = require("@codemirror/view"), setWords = import_state.StateEffect.define(), setPosition = import_state.StateEffect.define(), clearAll = import_state.StateEffect.define();
@@ -18340,6 +18340,25 @@ function timingsFromEdge(chunk, events) {
       }
   }
   return { unit: "ms", words };
+}
+function timingsFromCharAlignment(chunk, chars, startSeconds, endSeconds) {
+  return { unit: "ms", words: chunk.words.flatMap((ref) => {
+    if (ref.charStart >= chars.length) return [];
+    let endIdx = Math.min(ref.charEnd, chars.length) - 1;
+    return [{
+      wordIndex: ref.wordIndex,
+      start: Math.round(startSeconds[ref.charStart] * 1e3),
+      end: Math.round(endSeconds[endIdx] * 1e3)
+    }];
+  }) };
+}
+function estimatedTimings(chunk) {
+  let total = chunk.text.length || 1;
+  return { unit: "fraction", words: chunk.words.map((ref, i) => ({
+    wordIndex: ref.wordIndex,
+    start: ref.charStart / total,
+    end: i === chunk.words.length - 1 ? 1 : ref.charEnd / total
+  })) };
 }
 
 // src/engine/synthesis/disk-cache.ts
@@ -18726,13 +18745,21 @@ var ReadingSession = class {
   active = !1;
   // between a play/resume/seek and teardown/ended
   disposed = !1;
+  // Handles to the audio elements the engine created through us, so the
+  // acceptance harness can observe the live playbackRate (check 8).
+  createdAudios = [];
   constructor(opts) {
-    this.view = opts.view, this.onStateCb = opts.onState, this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = buildChunks(this.model), this.entries = buildWordEntries(this.model, opts.docText), this.synthesis = new SynthesisService(new EdgeProvider(), "en-US-AriaNeural");
+    this.view = opts.view, this.onStateCb = opts.onState, this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = buildChunks(this.model), this.entries = buildWordEntries(this.model, opts.docText);
+    let provider = opts.provider ?? new EdgeProvider(), voice = opts.voice ?? provider.defaultVoice;
+    this.synthesis = new SynthesisService(provider, voice);
     let cb = {
       requestChunk: (i, priority) => this.requestChunk(i, priority),
       onPosition: (word, sentence) => this.onPosition(word, sentence),
       onState: (s) => this.handleEngineState(s),
-      createAudio: () => new Audio(),
+      createAudio: () => {
+        let a = new Audio();
+        return this.createdAudios.push(a), a;
+      },
       makeUrl: (bytes, format) => URL.createObjectURL(
         new Blob([bytes.slice().buffer], {
           type: format === "mp3" ? "audio/mpeg" : "audio/wav"
@@ -18740,7 +18767,7 @@ var ReadingSession = class {
       ),
       revokeUrl: (url) => URL.revokeObjectURL(url)
     };
-    this.engine = new Engine(this.model, this.chunks, cb), this.dispatch([setWords.of(this.entries)]);
+    this.engine = new Engine(this.model, this.chunks, cb), opts.speed != null && this.engine.setSpeed(opts.speed), this.dispatch([setWords.of(this.entries)]), opts.primeAtWord != null && this.engine.primeAt(opts.primeAtWord);
   }
   // ─── Public API ────────────────────────────────────────────────────────────
   playPause() {
@@ -18766,11 +18793,22 @@ var ReadingSession = class {
   seekToWord(wordIndex) {
     this.disposed || (this.active = !0, this.engine.jumpToWord(wordIndex), this.startLoop());
   }
+  // Apply a new playback rate to the live audio without a rebuild. The caller
+  // (main.ts) also persists the rate so future sessions start at it.
+  setSpeed(rate) {
+    this.disposed || this.engine.setSpeed(rate);
+  }
   dispose() {
     this.disposed || (this.disposed = !0, this._state = "idle", this.teardown());
   }
   get state() {
     return this._state;
+  }
+  // Acceptance-only observability: the playbackRate every audio element the
+  // engine created is currently set to (check 8 reads this to confirm a live
+  // speed change reached the audio without a session restart).
+  get audioPlaybackRates() {
+    return this.createdAudios.map((a) => a.playbackRate);
   }
   // ─── Engine callbacks ────────────────────────────────────────────────────────
   requestChunk(i, priority) {
@@ -18844,8 +18882,8 @@ async function waitUntil(pred, timeoutMs, step = 50) {
   }
   return pred();
 }
-async function runAcceptance(app) {
-  let lines = ["# Skeleton acceptance report", ""], checks = [], write = () => app.vault.adapter.write(REPORT, lines.join(`
+async function runAcceptance(app, plugin) {
+  let lines = ["# Skeleton acceptance report", ""], checks = [], settingsSnapshot = JSON.stringify(plugin.settings), write = () => app.vault.adapter.write(REPORT, lines.join(`
 `) + `
 `), check = (name, pass, detail) => {
     checks.push({ name, pass, detail }), lines.push(`- ${pass ? "PASS" : "FAIL"}: ${name}. ${detail}`), write();
@@ -18855,8 +18893,21 @@ async function runAcceptance(app) {
       `Environment: platform=${process.platform}, electron=${process.versions?.electron ?? "none"}, chrome=${process.versions?.chrome ?? "none"}`,
       ""
     ), window.focus(), await sleep(300), document.visibilityState === "hidden") {
-      lines.splice(2, 0, "RESULT: BLOCKED", "", "The Obsidian window is hidden (occluded or minimized), so", "requestAnimationFrame is paused and UI-sync checks cannot run.", "Bring the test-vault window to the front and rerun."), await write();
-      return;
+      if (lines.push("(Window was hidden when fired; waited for visibility.)", ""), await app.vault.adapter.write(REPORT, `# Skeleton acceptance report
+
+ARMED: waiting for the window to become visible (10 minute limit)...
+`), !await new Promise((res) => {
+        let timeout = setTimeout(() => {
+          document.removeEventListener("visibilitychange", on), res(!1);
+        }, 6e5), on = () => {
+          document.visibilityState === "visible" && (clearTimeout(timeout), document.removeEventListener("visibilitychange", on), res(!0));
+        };
+        document.addEventListener("visibilitychange", on);
+      })) {
+        lines.splice(2, 0, "RESULT: BLOCKED", "", "The window never became visible within 10 minutes, so the", "rAF-driven checks could not run. Open the test vault and rerun."), await write();
+        return;
+      }
+      await sleep(500);
     }
     await app.vault.adapter.write(NOTE, FIXTURE);
     let file = app.vault.getAbstractFileByPath(NOTE) ?? app.vault.getFiles().find((f) => f.path === NOTE), leaf = app.workspace.getLeaf(!0);
@@ -18973,7 +19024,93 @@ async function runAcceptance(app) {
       "stop clears all decorations and releases audio",
       clearedNow && stayedFrozen && session.state === "idle",
       `words=${field().words.length}, word=${field().word}, state=${session.state}, frozen after 500ms=${stayedFrozen}`
+    ), session.dispose(), session = null;
+    let clickWord = async (e) => {
+      let midPos = Math.floor((e.runs[0].from + e.runs[0].to) / 2);
+      cm.dispatch({ effects: import_view3.EditorView.scrollIntoView(midPos) }), await sleep(120);
+      let c = cm.coordsAtPos(midPos);
+      return c ? (cm.contentDOM.dispatchEvent(
+        new MouseEvent("mousedown", {
+          clientX: (c.left + c.right) / 2 || c.left + 1,
+          clientY: (c.top + c.bottom) / 2,
+          bubbles: !0
+        })
+      ), !0) : !1;
+    };
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      speed: 1,
+      onState: (s) => {
+        lastState = s;
+      }
+    }), session.playPause();
+    let playing8 = await waitUntil(() => session.state === "playing", 6e3), sameSession = session;
+    session.setSpeed(2);
+    let rateApplied = await waitUntil(() => session.audioPlaybackRates.some((r) => r === 2), 500);
+    check(
+      "speed change during playback reaches the live audio within 500ms (same session)",
+      playing8 && rateApplied && session === sameSession,
+      `playing=${playing8}, rates=[${session.audioPlaybackRates.join(", ")}], sameSession=${session === sameSession}`
+    ), session.dispose(), session = null, plugin.acceptanceStartSession(cm, NOTE);
+    let started9 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      6e3
     );
+    plugin.acceptanceSession()?.playPause(), await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 1500);
+    let frozenWord = field().word, clickable = field().words.filter((e) => e.runs.length > 0), target9 = clickable[Math.min(clickable.length - 1, 20)];
+    plugin.settings.listeningMode = !1;
+    let off1 = await clickWord(target9);
+    await sleep(350);
+    let offWord = field().word, stayedOff = offWord === frozenWord;
+    plugin.settings.listeningMode = !0;
+    let on1 = await clickWord(target9), movedOn = await waitUntil(
+      () => field().word === target9.index || field().word === target9.index + 1,
+      1500
+    );
+    check(
+      "listening mode gates click-to-seek (off: no move, on: seeks to the clicked word)",
+      started9 && off1 && on1 && stayedOff && movedOn,
+      `frozen=${frozenWord}, off stayed at ${offWord}, on reached ${field().word}, target=${target9.index} ("${target9.text}")`
+    ), plugin.acceptanceDisposeSession();
+    let voiceA = "en-US-AriaNeural", voiceB = "en-US-GuyNeural";
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      voice: voiceA,
+      speed: 1,
+      onState: (s) => {
+        lastState = s;
+      }
+    }), session.playPause();
+    let playing10 = await waitUntil(() => session.state === "playing" && field().word >= 0, 6e3), capturedWord = field().word, capturedSentence = field().sentence;
+    session.dispose(), session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      voice: voiceB,
+      speed: 1,
+      primeAtWord: capturedWord,
+      onState: (s) => {
+        lastState = s;
+      }
+    });
+    let primedPaused = await waitUntil(() => session.state === "paused", 6e3), sentenceWords10 = field().words.filter((e) => e.sentence === capturedSentence && e.runs.length > 0).map((e) => e.index), firstWord10 = sentenceWords10.length ? Math.min(...sentenceWords10) : capturedWord;
+    session.playPause();
+    let resumed = await waitUntil(
+      () => session.state === "playing" && (field().word === capturedWord || field().word === firstWord10 || field().word === firstWord10 + 1),
+      6e3
+    );
+    if (check(
+      "voice change primes paused at the captured word; play resumes there with the new voice",
+      playing10 && primedPaused && resumed,
+      `captured=${capturedWord} (sentence ${capturedSentence}, start ${firstWord10}), primedPaused=${primedPaused}, resumedAt=${field().word}, newVoice=${voiceB}`
+    ), hiddenMidRun()) {
+      lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
+      return;
+    }
     let allPass = checks.every((c) => c.pass);
     lines.splice(
       2,
@@ -18988,18 +19125,304 @@ async function runAcceptance(app) {
     } catch {
     }
   } finally {
-    session?.dispose();
+    session?.dispose(), plugin.acceptanceDisposeSession();
+    try {
+      let snap = JSON.parse(settingsSnapshot);
+      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, await plugin.saveSettings();
+    } catch {
+    }
   }
 }
 
+// src/shell/settings.ts
+var DEFAULT_SETTINGS = {
+  providerId: "edge",
+  voiceByProvider: {},
+  speed: 1,
+  listeningMode: !0
+};
+function mergeSettings(saved) {
+  let s = saved ?? {};
+  return {
+    providerId: typeof s.providerId == "string" ? s.providerId : DEFAULT_SETTINGS.providerId,
+    voiceByProvider: s.voiceByProvider && typeof s.voiceByProvider == "object" ? { ...s.voiceByProvider } : {},
+    speed: typeof s.speed == "number" ? s.speed : DEFAULT_SETTINGS.speed,
+    listeningMode: typeof s.listeningMode == "boolean" ? s.listeningMode : DEFAULT_SETTINGS.listeningMode
+  };
+}
+function voiceForProvider(settings, providerId, providerDefaultVoice) {
+  return settings.voiceByProvider[providerId] ?? providerDefaultVoice;
+}
+function rememberVoice(settings, providerId, voice) {
+  return {
+    ...settings,
+    voiceByProvider: { ...settings.voiceByProvider, [providerId]: voice }
+  };
+}
+
+// src/shell/key-store.ts
+var KeyStore = class {
+  constructor(storage) {
+    this.storage = storage;
+  }
+  storage;
+  keyFor(providerId) {
+    return `speaking-editor:key:${providerId}`;
+  }
+  get(providerId) {
+    return this.storage.getItem(this.keyFor(providerId));
+  }
+  has(providerId) {
+    return this.get(providerId) !== null;
+  }
+  set(providerId, key) {
+    this.storage.setItem(this.keyFor(providerId), key);
+  }
+  clear(providerId) {
+    this.storage.removeItem(this.keyFor(providerId));
+  }
+};
+
+// src/engine/synthesis/say.ts
+var import_child_process = require("child_process"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path"), import_util = require("util");
+var run = (0, import_util.promisify)(import_child_process.execFile), NOVELTY_VOICES = /* @__PURE__ */ new Set([
+  "Bad News",
+  "Bahh",
+  "Bells",
+  "Boing",
+  "Bubbles",
+  "Cellos",
+  "Wobble",
+  "Albert",
+  "Jester",
+  "Hysterical",
+  "Organ",
+  "Superstar",
+  "Trinoids",
+  "Whisper",
+  "Zarvox",
+  "Deranged",
+  "Good News",
+  "Pipe Organ",
+  "Ralph",
+  "Kathy",
+  "Junior",
+  "Fred"
+]);
+function parseSayVoices(stdout) {
+  return stdout.split(`
+`).flatMap((line) => {
+    let m = line.match(/^([\w ()-]+?)\s{2,}([a-z]{2}[-_]\w+)/);
+    if (!m || !m[2].startsWith("en")) return [];
+    let name = m[1].trim();
+    return NOVELTY_VOICES.has(name) ? [] : [{ id: name, label: name }];
+  });
+}
+var SayProvider = class {
+  id = "say";
+  label = "macOS say (offline)";
+  requiresKey = !1;
+  timingQuality = "estimated";
+  maxCharsPerRequest = 2e4;
+  defaultVoice = "Samantha";
+  async listVoices() {
+    try {
+      let { stdout } = await run("say", ["-v", "?"]);
+      return parseSayVoices(stdout);
+    } catch {
+      return [{ id: "Samantha", label: "Samantha" }];
+    }
+  }
+  async synthesize(chunk, voice, signal) {
+    let out = (0, import_path2.join)((0, import_os.tmpdir)(), `talktomebaby-say-${Date.now()}-${chunk.index}.wav`);
+    try {
+      return await run(
+        "say",
+        ["-v", voice, "-o", out, "--file-format=WAVE", "--data-format=LEI16@22050", chunk.text],
+        { signal }
+      ), { audio: new Uint8Array(await import_fs2.promises.readFile(out)), format: "wav", timings: estimatedTimings(chunk) };
+    } finally {
+      await import_fs2.promises.rm(out, { force: !0 });
+    }
+  }
+};
+
+// src/engine/synthesis/elevenlabs.ts
+var BASE = "https://api.elevenlabs.io/v1", ElevenLabsProvider = class {
+  // Rachel
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+  }
+  apiKey;
+  id = "elevenlabs";
+  label = "ElevenLabs";
+  requiresKey = !0;
+  timingQuality = "exact";
+  maxCharsPerRequest = 5e3;
+  defaultVoice = "21m00Tcm4TlvDq8ikWAM";
+  async listVoices() {
+    try {
+      let res = await fetch(`${BASE}/voices`, { headers: { "xi-api-key": this.apiKey } });
+      return res.ok ? (await res.json()).voices.map((v) => ({ id: v.voice_id, label: v.name })) : [{ id: this.defaultVoice, label: "Rachel" }];
+    } catch {
+      return [{ id: this.defaultVoice, label: "Rachel" }];
+    }
+  }
+  async synthesize(chunk, voice, signal) {
+    let res = await fetch(`${BASE}/text-to-speech/${voice}/with-timestamps`, {
+      method: "POST",
+      signal,
+      headers: { "Content-Type": "application/json", "xi-api-key": this.apiKey },
+      body: JSON.stringify({ text: chunk.text, model_id: "eleven_multilingual_v2" })
+    });
+    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    let data = await res.json(), audio = new Uint8Array(Buffer.from(data.audio_base64, "base64")), timings = timingsFromCharAlignment(
+      chunk,
+      data.alignment.characters,
+      data.alignment.character_start_times_seconds,
+      data.alignment.character_end_times_seconds
+    );
+    return { audio, format: "mp3", timings };
+  }
+};
+
+// src/engine/synthesis/provider-catalog.ts
+var PROVIDER_CATALOG = [
+  { id: "edge", label: "Edge TTS", description: "Free \xB7 word-level timing", requiresKey: !1 },
+  { id: "elevenlabs", label: "ElevenLabs", description: "Premium \xB7 word-level timing", requiresKey: !0 },
+  { id: "openai", label: "OpenAI", description: "Premium \xB7 estimated timing", requiresKey: !0 },
+  { id: "say", label: "macOS say", description: "Offline \xB7 estimated timing", requiresKey: !1, darwinOnly: !0 },
+  { id: "sarvam", label: "Sarvam AI", description: "Indian English \xB7 estimated timing", requiresKey: !0 }
+];
+function availableProviders(platform) {
+  return PROVIDER_CATALOG.filter((p) => !p.darwinOnly || platform === "darwin");
+}
+
+// src/shell/providers.ts
+var SURFACED_PROVIDER_IDS = /* @__PURE__ */ new Set(["edge", "elevenlabs", "say"]);
+function buildProvider(providerId, keyStore) {
+  switch (providerId) {
+    case "edge":
+      return new EdgeProvider();
+    case "say":
+      return new SayProvider();
+    case "elevenlabs":
+      return new ElevenLabsProvider(keyStore.get("elevenlabs") ?? "");
+    default:
+      return new EdgeProvider();
+  }
+}
+function availableProviders2(platform = process.platform) {
+  return availableProviders(platform).filter((p) => SURFACED_PROVIDER_IDS.has(p.id));
+}
+
+// src/engine/synthesis/voice-cache.ts
+var VoiceCache = class {
+  store = /* @__PURE__ */ new Map();
+  /** Cached voices for a provider, or undefined on a miss. */
+  get(providerId) {
+    return this.store.get(providerId);
+  }
+  /** True when voices for this provider are already cached. */
+  has(providerId) {
+    return this.store.has(providerId);
+  }
+  /** Store a fetched voice list. */
+  set(providerId, voices) {
+    this.store.set(providerId, voices);
+  }
+  /**
+   * Return cached voices, or fetch via `fetcher`, cache, and return them.
+   * Fetch failures are NOT cached (so a transient network error can be retried),
+   * and propagate to the caller.
+   */
+  async resolve(providerId, fetcher) {
+    let cached = this.store.get(providerId);
+    if (cached) return cached;
+    let voices = await fetcher();
+    return this.store.set(providerId, voices), voices;
+  }
+  /**
+   * Remove a provider's cached voice list, forcing the next resolve() to
+   * re-fetch from the provider. Use when a provider's API key changes —
+   * the new key may surface different voices (e.g. a different plan tier).
+   */
+  invalidate(providerId) {
+    this.store.delete(providerId);
+  }
+};
+
+// src/shell/settings-tab.ts
+var import_obsidian = require("obsidian");
+var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  plugin;
+  display() {
+    let { containerEl } = this;
+    containerEl.empty();
+    let settings = this.plugin.settings, provider = buildProvider(settings.providerId, this.plugin.keyStore);
+    new import_obsidian.Setting(containerEl).setName("Voice provider").setDesc("Where the spoken audio comes from. Edge is free and keeps words in exact sync.").addDropdown((dd) => {
+      for (let p of availableProviders2()) dd.addOption(p.id, p.label);
+      dd.setValue(settings.providerId), dd.onChange(async (id) => {
+        await this.plugin.applyProvider(id), this.display();
+      });
+    });
+    let currentVoice = voiceForProvider(settings, settings.providerId, provider.defaultVoice);
+    new import_obsidian.Setting(containerEl).setName("Voice").setDesc("The specific voice to read in.").addDropdown((dd) => {
+      dd.addOption(currentVoice, currentVoice), dd.setValue(currentVoice), dd.onChange((voice) => {
+        this.plugin.applyVoice(settings.providerId, voice);
+      });
+      let fill = (voices) => {
+        dd.selectEl.empty();
+        for (let v of voices) dd.addOption(v.id, v.label);
+        voices.some((v) => v.id === currentVoice) || dd.addOption(currentVoice, currentVoice), dd.setValue(currentVoice);
+      };
+      this.plugin.voiceCache.resolve(settings.providerId, () => provider.listVoices()).then(fill).catch(() => fill([{ id: provider.defaultVoice, label: provider.defaultVoice }]));
+    });
+    let speedSetting = new import_obsidian.Setting(containerEl).setName("Reading speed").setDesc(speedDesc(settings.speed));
+    if (speedSetting.addSlider((sl) => {
+      sl.setLimits(0.5, 3, 0.1), sl.setValue(settings.speed), sl.setInstant(!0), sl.onChange((v) => {
+        speedSetting.setDesc(speedDesc(v)), this.plugin.applySpeed(v);
+      });
+    }), new import_obsidian.Setting(containerEl).setName("Listening mode").setDesc("When on, clicking a word jumps the reading there. When off, clicking edits as normal.").addToggle((tg) => {
+      tg.setValue(settings.listeningMode), tg.onChange(async (on) => {
+        this.plugin.settings.listeningMode = on, await this.plugin.saveSettings();
+      });
+    }), provider.requiresKey) {
+      let hasKey = this.plugin.keyStore.has(settings.providerId), keySetting = new import_obsidian.Setting(containerEl).setName(`${provider.label} API key`).setDesc(
+        hasKey ? "A key is saved on this device. Paste a new one to replace it." : "No key saved. Paste your key to use this provider. Keys stay on this device and are never synced."
+      );
+      keySetting.addText((tx) => {
+        tx.inputEl.type = "password", tx.setPlaceholder(hasKey ? "Saved (hidden)" : "Paste key"), tx.onChange((val) => {
+          let key = val.trim();
+          key && (this.plugin.keyStore.set(settings.providerId, key), this.plugin.voiceCache.invalidate(settings.providerId));
+        });
+      }), keySetting.addExtraButton((btn) => {
+        btn.setIcon("trash").setTooltip("Clear the saved key").onClick(() => {
+          this.plugin.keyStore.clear(settings.providerId), this.plugin.voiceCache.invalidate(settings.providerId), this.display();
+        });
+      });
+    }
+  }
+};
+function speedDesc(speed) {
+  return `How fast to read. Currently ${speed.toFixed(1)}x.`;
+}
+
 // src/shell/main.ts
-var SpeakingEditorPlugin = class extends import_obsidian.Plugin {
+var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
+  keyStore;
+  voiceCache;
   session = null;
   sessionView = null;
+  sessionUri = "untitled";
   ribbonEl = null;
   boundDoms = /* @__PURE__ */ new WeakSet();
   async onload() {
-    this.registerEditorExtension(syncField), this.ribbonEl = this.addRibbonIcon("play-circle", "Play or pause reading", () => this.playPause()), this.addCommand({
+    this.settings = mergeSettings(await this.loadData()), this.keyStore = new KeyStore(window.localStorage), this.voiceCache = new VoiceCache(), this.registerEditorExtension(syncField), this.ribbonEl = this.addRibbonIcon("play-circle", "Play or pause reading", () => this.playPause()), this.addCommand({
       id: "play-pause",
       name: "Play or pause reading",
       callback: () => this.playPause()
@@ -19008,19 +19431,67 @@ var SpeakingEditorPlugin = class extends import_obsidian.Plugin {
       name: "Stop reading",
       callback: () => this.stopSession()
     }), this.addCommand({
+      id: "toggle-listening-mode",
+      name: "Toggle listening mode",
+      callback: () => {
+        this.toggleListeningMode();
+      }
+    }), this.addSettingTab(new SpeakingEditorSettingTab(this.app, this)), this.addCommand({
       id: "run-acceptance-checks",
       name: "Run acceptance checks",
       callback: () => {
-        this.disposeSession(), runAcceptance(this.app);
+        this.disposeSession(), runAcceptance(this.app, this);
       }
     });
   }
   onunload() {
     this.disposeSession();
   }
+  // ─── Settings persistence ────────────────────────────────────────────────────
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+  async toggleListeningMode() {
+    this.settings.listeningMode = !this.settings.listeningMode, await this.saveSettings(), new import_obsidian2.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
+  }
+  // ─── Live setting application (called by the settings tab) ────────────────────
+  // Speed applies immediately to the live audio, no rebuild.
+  async applySpeed(rate) {
+    this.settings.speed = rate, await this.saveSettings(), this.session?.setSpeed(rate);
+  }
+  // Provider change: persist, then reconfigure any active session in place.
+  async applyProvider(providerId) {
+    this.settings.providerId = providerId, await this.saveSettings(), this.reconfigureActiveSession();
+  }
+  // Voice change for a provider: remember it, then reconfigure only if that
+  // provider is the one currently playing.
+  async applyVoice(providerId, voice) {
+    this.settings = rememberVoice(this.settings, providerId, voice), await this.saveSettings(), providerId === this.settings.providerId && this.reconfigureActiveSession();
+  }
+  // The parent's "surprise audio on switch is jarring" rule: capture the current
+  // word, dispose the old session's synthesis and audio, and build a fresh one
+  // primed PAUSED at that word. Never auto-plays.
+  reconfigureActiveSession() {
+    if (!this.session || !this.sessionView) return;
+    let cm = this.sessionView, word = cm.state.field(syncField, !1)?.word ?? -1;
+    this.session.dispose(), this.session = this.buildSession(cm, this.sessionUri, word >= 0 ? word : void 0);
+  }
   // ─── Session wiring ──────────────────────────────────────────────────────────
+  buildSession(cm, uri, primeAtWord) {
+    let provider = buildProvider(this.settings.providerId, this.keyStore), voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    return new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri,
+      view: cm,
+      provider,
+      voice,
+      speed: this.settings.speed,
+      primeAtWord,
+      onState: (s) => this.onSessionState(s)
+    });
+  }
   playPause() {
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
     if (!view) return;
     let cm = view.editor.cm;
     if (cm) {
@@ -19032,12 +19503,7 @@ var SpeakingEditorPlugin = class extends import_obsidian.Plugin {
     }
   }
   startSession(cm, uri) {
-    this.sessionView = cm, this.session = new ReadingSession({
-      docText: cm.state.doc.toString(),
-      uri,
-      view: cm,
-      onState: (s) => this.onSessionState(s)
-    }), this.bindClickToSeek(cm), this.session.playPause();
+    this.sessionView = cm, this.sessionUri = uri, this.session = this.buildSession(cm, uri), this.bindClickToSeek(cm), this.session.playPause();
   }
   stopSession() {
     this.session && (this.session.stop(), this.updateRibbon("idle"));
@@ -19051,7 +19517,19 @@ var SpeakingEditorPlugin = class extends import_obsidian.Plugin {
   updateRibbon(state) {
     if (!this.ribbonEl) return;
     let icon = state === "playing" ? "pause" : state === "paused" ? "play" : "play-circle";
-    (0, import_obsidian.setIcon)(this.ribbonEl, icon);
+    (0, import_obsidian2.setIcon)(this.ribbonEl, icon);
+  }
+  // ─── Acceptance helpers (dev-only, used by the harness) ───────────────────────
+  // Start the plugin's own session on a specific editor so the harness can
+  // exercise the real click-to-seek path (which consults listeningMode).
+  acceptanceStartSession(cm, uri) {
+    this.disposeSession(), this.startSession(cm, uri);
+  }
+  acceptanceSession() {
+    return this.session;
+  }
+  acceptanceDisposeSession() {
+    this.disposeSession();
   }
   // ─── Click-to-seek ───────────────────────────────────────────────────────────
   // Bind once per editor DOM (sessions come and go on the same editor); the
@@ -19061,7 +19539,7 @@ var SpeakingEditorPlugin = class extends import_obsidian.Plugin {
     this.boundDoms.has(dom) || (this.boundDoms.add(dom), this.registerDomEvent(dom, "mousedown", (evt) => this.onEditorMouseDown(view, evt)));
   }
   onEditorMouseDown(view, evt) {
-    if (!this.session || this.sessionView !== view) return;
+    if (!this.session || this.sessionView !== view || !this.settings.listeningMode) return;
     let pos = view.posAtCoords({ x: evt.clientX, y: evt.clientY });
     if (pos == null) return;
     let words = view.state.field(syncField).words, w = words.find((e) => e.runs.some((r) => pos >= r.from && pos < r.to)) ?? words.find((e) => e.runs.length > 0 && e.runs[0].from >= pos);

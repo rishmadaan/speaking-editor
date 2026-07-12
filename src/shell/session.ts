@@ -9,6 +9,7 @@ import { StateEffect } from "@codemirror/state";
 import { parseDocument, buildChunks, DocumentModel, Chunk } from "../engine/core";
 import { SynthesisService } from "../engine/synthesis/synthesis-service";
 import { EdgeProvider } from "../engine/synthesis/edge";
+import { TtsProvider } from "../engine/synthesis/provider";
 import { Engine, EngineCallbacks, AudioLike } from "../playback/engine";
 import { buildWordEntries, WordEntry } from "./word-runs";
 import { setWords, setPosition, clearAll, syncField } from "./sync-field";
@@ -20,6 +21,15 @@ export interface ReadingSessionOptions {
   uri: string;
   view: EditorView;
   onState: (state: SessionState, message?: string) => void;
+  // Synthesis provider instance; defaults to Edge (our default) when omitted.
+  provider?: TtsProvider;
+  // Voice id for that provider; defaults to the provider's own default voice.
+  voice?: string;
+  // Initial playback rate; defaults to 1.
+  speed?: number;
+  // When set, construction primes PAUSED at this word (via Engine.primeAt)
+  // instead of starting playback, so a later play resumes exactly there.
+  primeAtWord?: number;
 }
 
 export class ReadingSession {
@@ -35,6 +45,9 @@ export class ReadingSession {
   private _state: SessionState = "idle";
   private active = false; // between a play/resume/seek and teardown/ended
   private disposed = false;
+  // Handles to the audio elements the engine created through us, so the
+  // acceptance harness can observe the live playbackRate (check 8).
+  private createdAudios: AudioLike[] = [];
 
   constructor(opts: ReadingSessionOptions) {
     this.view = opts.view;
@@ -43,13 +56,19 @@ export class ReadingSession {
     this.chunks = buildChunks(this.model);
     this.entries = buildWordEntries(this.model, opts.docText);
     // no disk cache in this slice; the service still de-dupes in-flight requests
-    this.synthesis = new SynthesisService(new EdgeProvider(), "en-US-AriaNeural");
+    const provider = opts.provider ?? new EdgeProvider();
+    const voice = opts.voice ?? provider.defaultVoice;
+    this.synthesis = new SynthesisService(provider, voice);
 
     const cb: EngineCallbacks = {
       requestChunk: (i, priority) => this.requestChunk(i, priority),
       onPosition: (word, sentence) => this.onPosition(word, sentence),
       onState: (s) => this.handleEngineState(s),
-      createAudio: () => new Audio() as unknown as AudioLike,
+      createAudio: () => {
+        const a = new Audio() as unknown as AudioLike;
+        this.createdAudios.push(a);
+        return a;
+      },
       makeUrl: (bytes, format) =>
         URL.createObjectURL(
           new Blob([bytes.slice().buffer as ArrayBuffer], {
@@ -59,9 +78,15 @@ export class ReadingSession {
       revokeUrl: (url) => URL.revokeObjectURL(url),
     };
     this.engine = new Engine(this.model, this.chunks, cb);
+    if (opts.speed != null) this.engine.setSpeed(opts.speed);
 
     // seed the field so decorations can paint the moment a position arrives
     this.dispatch([setWords.of(this.entries)]);
+
+    // A reconfigure (provider/voice change) primes the new session PAUSED at the
+    // word the listener was on, so a later play resumes there instead of blasting
+    // audio on switch. Construction primes; it never auto-plays.
+    if (opts.primeAtWord != null) this.engine.primeAt(opts.primeAtWord);
   }
 
   // ─── Public API ────────────────────────────────────────────────────────────
@@ -106,6 +131,13 @@ export class ReadingSession {
     this.startLoop();
   }
 
+  // Apply a new playback rate to the live audio without a rebuild. The caller
+  // (main.ts) also persists the rate so future sessions start at it.
+  setSpeed(rate: number) {
+    if (this.disposed) return;
+    this.engine.setSpeed(rate);
+  }
+
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
@@ -115,6 +147,13 @@ export class ReadingSession {
 
   get state(): SessionState {
     return this._state;
+  }
+
+  // Acceptance-only observability: the playbackRate every audio element the
+  // engine created is currently set to (check 8 reads this to confirm a live
+  // speed change reached the audio without a session restart).
+  get audioPlaybackRates(): number[] {
+    return this.createdAudios.map((a) => a.playbackRate);
   }
 
   // ─── Engine callbacks ────────────────────────────────────────────────────────
