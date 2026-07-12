@@ -1,6 +1,6 @@
 # 0002: The Obsidian markdown dialect
 
-Status: building
+Status: done (139 tests green, 41 new; manual listen pending with Dialect Note.md)
 Date: 2026-07-12
 Depends on: 0001 (walking skeleton). This is the flawless-versus-janky
 battleground from the reuse map: the vendored parser handles standard

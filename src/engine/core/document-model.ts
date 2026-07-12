@@ -126,21 +126,76 @@ function pushTrimmedSpan(
   }
 }
 
+const TAG_CHAR = /[\w/-]/;
+
+// A valid Obsidian tag body: tag chars only, with at least one non-digit.
+function tagBodyEnd(line: string, start: number): number {
+  let end = start;
+  while (end < line.length && TAG_CHAR.test(line[end])) end++;
+  if (end === start) return start;
+  if (!/\D/.test(line.slice(start, end))) return start;
+  return end;
+}
+
+// True when the line's readable content is only tags and whitespace.
+function isTagOnlyLine(content: string): boolean {
+  const trimmed = content.trim();
+  if (trimmed.length === 0) return false;
+  return trimmed.split(/\s+/).every((tok) => {
+    if (tok[0] !== "#") return false;
+    return tagBodyEnd(tok, 1) === tok.length;
+  });
+}
+
 function cleanLineInto(
   line: string,
   lineOffset: number,
   output: string[],
   offsets: number[]
 ) {
-  let i = getReadableLineStart(line);
+  const readableStart = getReadableLineStart(line);
+  const isQuote = /^\s*>/.test(line);
+  if (isTagOnlyLine(line.slice(readableStart))) return;
+
+  let i = readableStart;
 
   while (i < line.length) {
+    // Callout marker "[!type]" (+ optional fold "+"/"-") at a quote line start.
+    if (i === readableStart && isQuote) {
+      const callout = /^\[![^\]\n]*\][+-]?\s*/.exec(line.slice(i));
+      if (callout) {
+        i += callout[0].length;
+        continue;
+      }
+    }
+
+    // Embed "![[...]]" is skipped entirely (spec 0002 point 2).
+    if (line.startsWith("![[", i)) {
+      const close = line.indexOf("]]", i + 3);
+      if (close >= 0) {
+        i = close + 2;
+        continue;
+      }
+    }
+
+    // Wikilink "[[Target]]" / "[[Target|alias]]": speak the alias, else target.
+    if (line.startsWith("[[", i)) {
+      const close = line.indexOf("]]", i + 2);
+      if (close >= 0) {
+        const pipe = line.indexOf("|", i + 2);
+        const emitStart = pipe >= 0 && pipe < close ? pipe + 1 : i + 2;
+        appendRange(line, lineOffset, emitStart, close, output, offsets);
+        i = close + 2;
+        continue;
+      }
+    }
+
+    // Markdown image "![alt](url)" is skipped entirely (spec 0002 point 2).
     if (line.startsWith("![", i)) {
       const closeBracket = line.indexOf("]", i + 2);
       const openParen = closeBracket >= 0 ? line.indexOf("(", closeBracket) : -1;
       const closeParen = openParen >= 0 ? line.indexOf(")", openParen) : -1;
       if (closeBracket >= 0 && openParen === closeBracket + 1 && closeParen >= 0) {
-        appendRange(line, lineOffset, i + 2, closeBracket, output, offsets);
         i = closeParen + 1;
         continue;
       }
@@ -153,6 +208,31 @@ function cleanLineInto(
       if (closeBracket >= 0 && openParen === closeBracket + 1 && closeParen >= 0) {
         appendRange(line, lineOffset, i + 1, closeBracket, output, offsets);
         i = closeParen + 1;
+        continue;
+      }
+    }
+
+    // Comment "%%...%%" within a line is skipped entirely (spec 0002 point 6).
+    if (line.startsWith("%%", i)) {
+      const close = line.indexOf("%%", i + 2);
+      if (close >= 0) {
+        i = close + 2;
+        continue;
+      }
+    }
+
+    // Highlight "==...==": doubled "=" is a marker (spec 0002 point 5).
+    if (line[i] === "=" && line[i + 1] === "=") {
+      i += 2;
+      continue;
+    }
+
+    // Tag "#tag": strip the hash, speak the tag body (spec 0002 point 4).
+    if (line[i] === "#" && (i === readableStart || /\s/.test(line[i - 1]))) {
+      const end = tagBodyEnd(line, i + 1);
+      if (end > i + 1) {
+        appendRange(line, lineOffset, i + 1, end, output, offsets);
+        i = end;
         continue;
       }
     }

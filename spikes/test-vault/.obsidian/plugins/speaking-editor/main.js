@@ -18092,13 +18092,47 @@ function pushTrimmedSpan(source, spans, start, end) {
     end
   });
 }
+var TAG_CHAR = /[\w/-]/;
+function tagBodyEnd(line, start) {
+  let end = start;
+  for (; end < line.length && TAG_CHAR.test(line[end]); ) end++;
+  return end === start || !/\D/.test(line.slice(start, end)) ? start : end;
+}
+function isTagOnlyLine(content) {
+  let trimmed = content.trim();
+  return trimmed.length === 0 ? !1 : trimmed.split(/\s+/).every((tok) => tok[0] !== "#" ? !1 : tagBodyEnd(tok, 1) === tok.length);
+}
 function cleanLineInto(line, lineOffset, output, offsets) {
-  let i = getReadableLineStart(line);
+  let readableStart = getReadableLineStart(line), isQuote = /^\s*>/.test(line);
+  if (isTagOnlyLine(line.slice(readableStart))) return;
+  let i = readableStart;
   for (; i < line.length; ) {
+    if (i === readableStart && isQuote) {
+      let callout = /^\[![^\]\n]*\][+-]?\s*/.exec(line.slice(i));
+      if (callout) {
+        i += callout[0].length;
+        continue;
+      }
+    }
+    if (line.startsWith("![[", i)) {
+      let close = line.indexOf("]]", i + 3);
+      if (close >= 0) {
+        i = close + 2;
+        continue;
+      }
+    }
+    if (line.startsWith("[[", i)) {
+      let close = line.indexOf("]]", i + 2);
+      if (close >= 0) {
+        let pipe = line.indexOf("|", i + 2), emitStart = pipe >= 0 && pipe < close ? pipe + 1 : i + 2;
+        appendRange(line, lineOffset, emitStart, close, output, offsets), i = close + 2;
+        continue;
+      }
+    }
     if (line.startsWith("![", i)) {
       let closeBracket = line.indexOf("]", i + 2), openParen = closeBracket >= 0 ? line.indexOf("(", closeBracket) : -1, closeParen = openParen >= 0 ? line.indexOf(")", openParen) : -1;
       if (closeBracket >= 0 && openParen === closeBracket + 1 && closeParen >= 0) {
-        appendRange(line, lineOffset, i + 2, closeBracket, output, offsets), i = closeParen + 1;
+        i = closeParen + 1;
         continue;
       }
     }
@@ -18106,6 +18140,24 @@ function cleanLineInto(line, lineOffset, output, offsets) {
       let closeBracket = line.indexOf("]", i + 1), openParen = closeBracket >= 0 ? line.indexOf("(", closeBracket) : -1, closeParen = openParen >= 0 ? line.indexOf(")", openParen) : -1;
       if (closeBracket >= 0 && openParen === closeBracket + 1 && closeParen >= 0) {
         appendRange(line, lineOffset, i + 1, closeBracket, output, offsets), i = closeParen + 1;
+        continue;
+      }
+    }
+    if (line.startsWith("%%", i)) {
+      let close = line.indexOf("%%", i + 2);
+      if (close >= 0) {
+        i = close + 2;
+        continue;
+      }
+    }
+    if (line[i] === "=" && line[i + 1] === "=") {
+      i += 2;
+      continue;
+    }
+    if (line[i] === "#" && (i === readableStart || /\s/.test(line[i - 1]))) {
+      let end = tagBodyEnd(line, i + 1);
+      if (end > i + 1) {
+        appendRange(line, lineOffset, i + 1, end, output, offsets), i = end;
         continue;
       }
     }
