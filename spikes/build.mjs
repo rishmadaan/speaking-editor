@@ -21,7 +21,12 @@ await build({
   platform: "node",
   format: "cjs",
   target: "es2022",
-  external: ["obsidian", "electron", "bufferutil", "utf-8-validate"],
+  external: [
+    "obsidian", "electron", "bufferutil", "utf-8-validate",
+    // Obsidian provides the CodeMirror packages at runtime; bundling a second
+    // copy would break instanceof checks against the live editor.
+    "@codemirror/state", "@codemirror/view", "@codemirror/language",
+  ],
   logLevel: "info",
 });
 copyFileSync(join(src, "manifest.json"), join(out, "manifest.json"));

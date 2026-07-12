@@ -1,0 +1,9 @@
+{
+  "id": "speaking-editor-spike2",
+  "name": "Speaking Editor Spike 2 (CM6 decorations)",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "Throwaway spike: word/sentence decorations, click-to-seek, live-edit remapping in the native editor.",
+  "author": "Rishabh Madaan",
+  "isDesktopOnly": true
+}
