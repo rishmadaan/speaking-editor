@@ -1,6 +1,6 @@
 # 0008: Release kit (docs, legal, pipeline, repo hygiene)
 
-Status: draft (builds after 0007 lands)
+Status: done (250 tests; docs lead-read; publish steps await Rishabh)
 Date: 2026-07-12
 Depends on: everything. The last v1 slice: the repo becomes releasable.
 Nothing here publishes anything; creating the GitHub repo, pushing, and

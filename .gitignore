@@ -1,3 +1,6 @@
 node_modules/
+# Build output: rebuilt on demand and attached fresh to each GitHub release.
+# The dev build is still installed into the test vault (tracked) as before.
+dist/
 # Obsidian per-window state inside the throwaway test vault (regenerated on open)
 spikes/test-vault/.obsidian/workspace.json
