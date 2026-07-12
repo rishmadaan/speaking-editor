@@ -1,6 +1,6 @@
 # 0012: The follow policy (ported from TalkToMeBaby) and fast starts
 
-Status: building
+Status: built (332 tests; live checks 31-34 in the next hands-off run)
 Date: 2026-07-12
 Depends on: 0001-0011. Driven by a live bug report on a 63-minute note:
 auto-follow yanked the view back to the reading position whenever Rishabh

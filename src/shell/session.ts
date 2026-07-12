@@ -15,6 +15,7 @@ import { TtsProvider, ChunkAudio } from "../engine/synthesis/provider";
 import { Engine, EngineCallbacks, AudioLike } from "../playback/engine";
 import { buildWordEntries, WordEntry } from "./word-runs";
 import { HighlightSurface, CmSurface } from "./highlight-surface";
+import { splitFirstChunk } from "./chunk-split";
 
 // How long the final word's highlight lingers after a natural end before the
 // surface clears, so the ending breathes instead of snapping (spec 0010 point 2).
@@ -113,7 +114,10 @@ export class ReadingSession {
       throw new Error("ReadingSession needs a surface or a view to build one");
     }
     this.model = parseDocument(opts.docText, opts.uri, 1);
-    this.chunks = buildChunks(this.model);
+    // Fast start (spec 0012 Part 2): split an oversized chunk 0 so first audio
+    // arrives in a fraction of the time on a cold big note. A pure wrapper over
+    // buildChunks; word refs and offsets are preserved so the engine is unaffected.
+    this.chunks = splitFirstChunk(buildChunks(this.model), this.model);
     this.entries = buildWordEntries(this.model, opts.docText);
     // The shared disk cache (when provided) lets the service serve a replayed
     // chunk from disk with zero network; it still de-dupes in-flight requests.
@@ -191,12 +195,40 @@ export class ReadingSession {
 
   seekToWord(wordIndex: number) {
     if (this.disposed) return;
+    // The click is the new reading position: re-engage following (in place, no
+    // scroll) and paint the clicked word IMMEDIATELY (spec 0012 Part 2 point 2),
+    // even though audio for that chunk may still be synthesizing. The engine tick
+    // corrects the position the moment real audio starts.
+    this.surface.notifyJump?.();
+    const sentence = this.entries[wordIndex]?.sentence ?? -1;
+    if (wordIndex >= 0 && sentence >= 0) {
+      this._currentWord = wordIndex;
+      this._currentSentence = sentence;
+      this.surface.onPosition(wordIndex, sentence);
+    }
     // A seek requests playback: enter "preparing". If the target chunk is already
     // loaded the engine reports "playing" synchronously and overwrites it; if not,
     // we hold "preparing" until the chunk arrives and starts.
     this.enterPreparing();
     this.engine.jumpToWord(wordIndex);
     this.startLoop();
+  }
+
+  // Return-chip click: re-engage following and re-centre the current sentence.
+  engageFollow() {
+    if (this.disposed) return;
+    this.surface.engageFollow?.();
+  }
+
+  // Whether the surface is currently following the reading (acceptance checks).
+  get following(): boolean {
+    return this.surface.following ?? true;
+  }
+
+  // Acceptance-only: the character length of the (possibly split) first chunk, so
+  // check 33 can assert the fast-start split made chunk 0 small.
+  get acceptanceChunk0Length(): number {
+    return this.chunks[0]?.text.length ?? 0;
   }
 
   // Reading-mode click-to-seek: hand a viewport point to the surface, which maps

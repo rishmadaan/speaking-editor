@@ -1124,6 +1124,138 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       tipShown30 && flagFlipped30 && !tipAgain30,
       `tipShown=${tipShown30}, flagFlipped=${flagFlipped30}, tipOnSecondPlay=${tipAgain30}`
     );
+    plugin.acceptanceDisposeSession();
+
+    // ─── Follow policy and fast starts (spec 0012) ───────────────────────────
+    // A note tall enough that the comfort-band follow actually scrolls (a short
+    // fixture fits the viewport and never moves), generated programmatically so
+    // the fast-start split has a big cold chunk 0 to divide (~10k words).
+    const BIG_NOTE = "Skeleton Large.md";
+    const bigSentences: string[] = [];
+    for (let i = 1; i <= 800; i++) {
+      bigSentences.push(`This is ordinary sentence number ${i} with plenty of plain words to read.`);
+    }
+    const bigParagraphs: string[] = [];
+    for (let p = 0; p < bigSentences.length; p += 5) {
+      bigParagraphs.push(bigSentences.slice(p, p + 5).join(" "));
+    }
+    const BIG_TEXT = bigParagraphs.join("\n\n") + "\n";
+    await app.vault.adapter.write(BIG_NOTE, BIG_TEXT);
+    const bigLeaf = app.workspace.getLeaf(true);
+    await bigLeaf.openFile(getFileByName(BIG_NOTE));
+    const bigView = bigLeaf.view as MarkdownView;
+    await (bigView as any).setState(
+      { ...(bigView as any).getState(), mode: "source", source: false },
+      { history: false }
+    );
+    await sleep(200);
+    const bigCm: EditorView = (bigView.editor as any).cm;
+    const bigField = () => bigCm.state.field(syncField);
+    const returnChipVisible = () => !!document.querySelector(".se-return.se-return-visible");
+
+    // 31. During playback with following on, a synthetic user scroll on scrollDOM
+    //     stops auto-scroll: the next sentence change does not move scrollTop, and
+    //     the return chip is visible.
+    plugin.acceptanceClearPosition(BIG_NOTE);
+    plugin.acceptanceStartSession(bigCm, BIG_NOTE);
+    const started31 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && bigField().word >= 2,
+      12000
+    );
+    // Break following with a synthetic user scroll. Retry past any in-flight
+    // self-scroll guard (a comfort-band scroll fences the next ~600ms), so this
+    // lands in a clear window and breaks following exactly once.
+    const brokeFollowing31 = await waitUntil(() => {
+      bigCm.scrollDOM.dispatchEvent(new Event("scroll"));
+      return plugin.acceptanceSession()?.following === false;
+    }, 6000, 100);
+    const chipVisible31 = returnChipVisible();
+    await sleep(500); // let any in-flight scroll settle before sampling scrollTop
+    const scrollAtBreak31 = bigCm.scrollDOM.scrollTop;
+    const sentAtBreak31 = bigField().sentence;
+    // wait for at least one more sentence change; with following off it must not scroll
+    const advanced31 = await waitUntil(
+      () => bigField().sentence !== sentAtBreak31 && bigField().sentence >= 0,
+      10000
+    );
+    const scrollFrozen31 = bigCm.scrollDOM.scrollTop === scrollAtBreak31;
+    check(
+      "spec 0012: a user scroll breaks following (chip shows) and stops auto-scroll on the next sentence change",
+      started31 && brokeFollowing31 && chipVisible31 && advanced31 && scrollFrozen31,
+      `started=${started31}, broke=${brokeFollowing31}, chipVisible=${chipVisible31}, sentenceAdvanced=${advanced31}, scrollFrozen=${scrollFrozen31} (scrollTop stayed ${scrollAtBreak31})`
+    );
+
+    // 32. Clicking the return chip scrolls the current sentence back into the
+    //     comfort band and hides the chip; following resumes (a later out-of-band
+    //     sentence change scrolls again).
+    const scrollBeforeReturn32 = bigCm.scrollDOM.scrollTop;
+    const chipEl32 = document.querySelector(".se-return") as HTMLElement | null;
+    chipEl32?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const chipHidden32 = await waitUntil(() => !returnChipVisible(), 2000);
+    const followingResumed32 = plugin.acceptanceSession()?.following === true;
+    // the click re-centres the (now drifted) current sentence: scrollTop moves
+    const recentred32 = await waitUntil(() => bigCm.scrollDOM.scrollTop !== scrollBeforeReturn32, 4000);
+    await sleep(600); // let the recentre settle
+    const scrollAfterRecentre32 = bigCm.scrollDOM.scrollTop;
+    // following resumed: as playback continues it auto-scrolls again
+    const autoScrollsAgain32 = await waitUntil(
+      () => bigCm.scrollDOM.scrollTop !== scrollAfterRecentre32,
+      25000
+    );
+    check(
+      "spec 0012: the return chip re-centres, hides, and following resumes (auto-scroll returns)",
+      chipHidden32 && followingResumed32 && recentred32 && autoScrollsAgain32,
+      `chipHidden=${chipHidden32}, followingResumed=${followingResumed32}, recentred=${recentred32}, autoScrollsAgain=${autoScrollsAgain32}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 33. Fast start: the session's (split) chunk 0 is under 700 characters and
+    //     playback reaches "playing" with word 0 painted. (Measuring the 3x time
+    //     drop in-app is impractical; the structural truth is what we assert.)
+    plugin.acceptanceClearPosition(BIG_NOTE);
+    plugin.acceptanceStartSession(bigCm, BIG_NOTE);
+    let sawWordZero33 = false;
+    const reachedPlaying33 = await waitUntil(() => {
+      if (bigField().word === 0) sawWordZero33 = true;
+      return plugin.acceptanceSession()?.state === "playing" && bigField().word >= 0;
+    }, 12000);
+    const chunk0Len33 = plugin.acceptanceSession()?.acceptanceChunk0Length ?? -1;
+    check(
+      "spec 0012 fast start: split chunk 0 is under 700 chars and playback reaches playing with word 0 painted",
+      reachedPlaying33 && sawWordZero33 && chunk0Len33 > 0 && chunk0Len33 < 700,
+      `chunk0Length=${chunk0Len33} (<700 expected), reachedPlaying=${reachedPlaying33}, sawWord0=${sawWordZero33}, word=${bigField().word}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 34. Optimistic click: seeking a word in a far, unloaded chunk paints that
+    //     word within 200ms, the state shows preparing (the chunk still
+    //     synthesizing), and audio eventually arrives at the clicked sentence.
+    plugin.acceptanceClearPosition(BIG_NOTE);
+    plugin.acceptanceStartSession(bigCm, BIG_NOTE);
+    const started34 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && bigField().word >= 0,
+      12000
+    );
+    const clickable34 = bigField().words.filter((e) => e.runs.length > 0);
+    const far34 = clickable34[Math.floor(clickable34.length * 0.8)]; // deep in an unloaded chunk
+    const t0_34 = performance.now();
+    plugin.acceptanceSession()?.seekToWord(far34.index);
+    const stateAfterSeek34 = plugin.acceptanceSession()?.state;
+    const painted34 = await waitUntil(() => bigField().word === far34.index, 200);
+    const paintMs34 = performance.now() - t0_34;
+    const preparing34 = stateAfterSeek34 === "preparing";
+    const arrived34 = await waitUntil(
+      () =>
+        plugin.acceptanceSession()?.state === "playing" &&
+        bigField().sentence === far34.sentence,
+      25000
+    );
+    check(
+      "spec 0012 optimistic seek: a far-chunk click paints the word within 200ms (preparing), audio arrives there",
+      started34 && painted34 && preparing34 && arrived34,
+      `paintedWithin200ms=${painted34} (${paintMs34.toFixed(0)}ms), stateAfterSeek=${stateAfterSeek34}, arrivedAtSentence=${arrived34}, target word=${far34.index} sentence=${far34.sentence}, current word=${bigField().word}`
+    );
+    plugin.acceptanceDisposeSession();
 
     if (hiddenMidRun()) {
       lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the control-surface checks; rAF-driven`, `measurements are invalid. Keep the window visible and rerun.`);

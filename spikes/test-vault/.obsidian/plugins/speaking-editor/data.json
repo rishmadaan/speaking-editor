@@ -3,14 +3,19 @@
   "voiceByProvider": {
     "edge": "en-US-AriaNeural"
   },
-  "speed": 1.5,
+  "speed": 1.2,
   "listeningMode": true,
   "cacheSizeMb": 200,
   "seekHintsShown": 3,
+  "firstPlayTipShown": true,
   "positions": {
     "Skeleton Note.md": {
       "wordIndex": 12,
       "ts": 1783874066661
+    },
+    "Demo.md": {
+      "wordIndex": 82,
+      "ts": 1783877659170
     }
   }
 }

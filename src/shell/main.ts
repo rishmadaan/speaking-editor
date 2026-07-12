@@ -11,8 +11,9 @@ import { homedir } from "os";
 import { join } from "path";
 import { syncField } from "./sync-field";
 import { ReadingSession, SessionState } from "./session";
-import { CmSurface, HighlightSurface } from "./highlight-surface";
+import { CmSurface, HighlightSurface, FollowHooks } from "./highlight-surface";
 import { RangeSurface } from "./range-surface";
+import { createReturnChip, ReturnChipHandle } from "./return-chip";
 import { runAcceptance } from "./acceptance";
 import { SpeakingEditorSettings, mergeSettings, rememberVoice, voiceForProvider } from "./settings";
 import { KeyStore } from "./key-store";
@@ -71,6 +72,9 @@ export default class SpeakingEditorPlugin extends Plugin {
   // The first-jump teaching hint currently on screen, if any: while one is up we
   // do not create a second (spec 0009 point 3). Cleared when it self-dismisses.
   private seekHint: HTMLElement | null = null;
+  // The "Return to reading" chip (spec 0012), one per live session, mounted near
+  // the pill anchor and shown/hidden by the surface's follow policy.
+  private returnChip: ReturnChipHandle | null = null;
 
   // ONE disk cache for every session, built at load and rebuilt on a size change.
   private cache!: DiskCache;
@@ -251,6 +255,7 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.bindSeekSurface(cm, ctx.mode, ctx.container);
     this.setPillAnchor(cm, ctx.mode, ctx.container);
     this.ensurePill();
+    this.ensureReturnChip();
     this.session.playPause();
   }
 
@@ -318,14 +323,21 @@ export default class SpeakingEditorPlugin extends Plugin {
   private buildSession(cm: EditorView, uri: string, primeAtWord?: number): ReadingSession {
     const provider = buildProvider(this.settings.providerId, this.keyStore);
     const voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    // Follow hooks drive the return chip: break -> show it, return/jump -> hide it.
+    // Closures over `this.returnChip` so the chip's lifecycle stays independent of
+    // the surface's (a voice-change reconfigure rebuilds the surface, keeps the chip).
+    const followHooks: FollowHooks = {
+      onFollowBreak: () => this.returnChip?.show(),
+      onFollowReturn: () => this.returnChip?.hide(),
+    };
     // Pick the paint surface by the session's mode (set by the caller): the CSS
     // Highlight surface over the rendered container in reading mode, the CM6 sync
     // field in live preview. The RangeSurface may fall back to "none" internally
     // if the rendered text does not align with the model.
     const surface: HighlightSurface =
       this.sessionMode === "reading" && this.sessionReadingContainer
-        ? new RangeSurface(this.sessionReadingContainer)
-        : new CmSurface(cm);
+        ? new RangeSurface(this.sessionReadingContainer, followHooks)
+        : new CmSurface(cm, followHooks);
     return new ReadingSession({
       docText: cm.state.doc.toString(),
       uri,
@@ -441,6 +453,7 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.bindSeekSurface(cm, ctx.mode, ctx.container);
     this.setPillAnchor(cm, ctx.mode, ctx.container);
     this.ensurePill(); // appears the moment a session starts
+    this.ensureReturnChip();
     this.session.playPause(); // begin playing (or resume from the primed word)
     if (primeAtWord != null) new Notice("Resumed where you left off");
     // The first play EVER teaches the click (the 0009 hint then confirms the
@@ -461,6 +474,7 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   private disposeSession() {
     this.destroyPill();
+    this.destroyReturnChip();
     // Remove any lingering teaching hint with its session.
     this.seekHint?.remove();
     this.seekHint = null;
@@ -486,6 +500,7 @@ export default class SpeakingEditorPlugin extends Plugin {
     if (state === "error") {
       this.showSessionError(message);
       this.destroyPill();
+      this.destroyReturnChip();
       return;
     }
     // The pill lives only while a session is live: a live state (preparing while
@@ -506,6 +521,8 @@ export default class SpeakingEditorPlugin extends Plugin {
       // decorations clear immediately on stop and after a 600ms linger on a natural
       // end; that timing is the session's job, this only retires the pill.
       this.fadePillOut();
+      // A broken-follow chip has nothing to return to once reading stops.
+      this.returnChip?.hide();
     }
   }
 
@@ -591,6 +608,24 @@ export default class SpeakingEditorPlugin extends Plugin {
   private destroyPill() {
     this.pill?.destroy();
     this.pill = null;
+  }
+
+  // Mount the return chip at the pill anchor (above the pill), hidden until the
+  // surface's follow policy shows it. Clicking it re-engages following and snaps
+  // the current sentence to centre. One per session, destroyed with the session.
+  private ensureReturnChip() {
+    if (this.returnChip || !this.session) return;
+    const anchor = this.pillAnchor ?? this.sessionView?.dom;
+    if (!anchor) return;
+    this.returnChip = createReturnChip(document, {
+      onReturn: () => this.session?.engageFollow(),
+    });
+    anchor.appendChild(this.returnChip.el);
+  }
+
+  private destroyReturnChip() {
+    this.returnChip?.destroy();
+    this.returnChip = null;
   }
 
   // The current voice's display label from the resolved voice cache, else the raw

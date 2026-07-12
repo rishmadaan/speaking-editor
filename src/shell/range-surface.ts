@@ -6,8 +6,9 @@
 // registers two highlights and paints; if not, it stays "none" and paints nothing,
 // so a note with embeds or a rendering that diverges never highlights WRONGLY.
 import { WordEntry } from "./word-runs";
-import { HighlightSurface } from "./highlight-surface";
+import { HighlightSurface, FollowHooks } from "./highlight-surface";
 import { alignWords } from "./text-align";
+import { FollowPolicy } from "./follow-policy";
 
 const WORD_HIGHLIGHT = "se-word-r";
 const SENTENCE_HIGHLIGHT = "se-sentence-r";
@@ -32,11 +33,38 @@ export class RangeSurface implements HighlightSurface {
   private wordHi = new Highlight();
   private sentenceHi = new Highlight();
   private registered = false;
+  private lastSentence = -1;
+  private policy: FollowPolicy;
+  private scroller: HTMLElement;
+  private scrollAborter = new AbortController();
+  private torn = false;
 
-  constructor(private container: HTMLElement) {}
+  constructor(private container: HTMLElement, hooks: FollowHooks = {}) {
+    this.policy = new FollowPolicy({
+      showChip: () => hooks.onFollowBreak?.(),
+      hideChip: () => hooks.onFollowReturn?.(),
+      scrollToCurrent: () => this.scrollSentenceToCenter(this.lastSentence),
+    });
+    // The reading scroller is the preview view (the overflow container); the
+    // aligned container is the inner sizer. A user scroll of it breaks following.
+    this.scroller =
+      (container.closest(".markdown-preview-view") as HTMLElement | null) ?? container;
+    this.scroller.addEventListener("scroll", () => this.policy.handleScroll(), {
+      passive: true,
+      signal: this.scrollAborter.signal,
+    });
+    this.scroller.addEventListener("scrollend", () => this.policy.handleScrollEnd(), {
+      passive: true,
+      signal: this.scrollAborter.signal,
+    });
+  }
 
   get kind(): "range" | "none" {
     return this._kind;
+  }
+
+  get following(): boolean {
+    return this.policy.following;
   }
 
   seed(entries: WordEntry[]): void {
@@ -77,6 +105,7 @@ export class RangeSurface implements HighlightSurface {
 
   onPosition(word: number, sentence: number): void {
     if (this._kind !== "range") return; // no alignment: playback with no highlight
+    this.lastSentence = sentence;
     this.wordHi.clear();
     this.sentenceHi.clear();
     // sentence band: every aligned word in this sentence (mirrors the CM6 field,
@@ -88,10 +117,15 @@ export class RangeSurface implements HighlightSurface {
     }
     const wr = this.rangeByWord.get(word);
     if (wr) this.wordHi.add(wr);
-    this.follow(sentence);
+    if (this.policy.following) this.follow(sentence);
   }
 
   clear(): void {
+    if (!this.torn) {
+      this.torn = true;
+      this.scrollAborter.abort();
+      this.policy.destroy();
+    }
     this.wordHi.clear();
     this.sentenceHi.clear();
     if (this.registered) {
@@ -102,6 +136,16 @@ export class RangeSurface implements HighlightSurface {
     this.rangeByWord.clear();
     this.ordered = [];
     this._kind = "none";
+  }
+
+  // Return chip: re-engage following and re-centre the current sentence.
+  engageFollow(): void {
+    this.policy.handleReturnClick();
+  }
+
+  // Click-to-seek: re-engage following in place, no scroll.
+  notifyJump(): void {
+    this.policy.handleJump();
   }
 
   // Map a viewport point to the nearest aligned word: the word whose range
@@ -135,20 +179,46 @@ export class RangeSurface implements HighlightSurface {
     return r ? r.getBoundingClientRect() : null;
   }
 
-  // Gentle follow: scroll the sentence's first aligned range into view with block
-  // "nearest", which only moves the viewport when the anchor has left the visible
-  // band, matching the live-preview leave-the-band policy.
+  // Comfort-band follow (spec 0012 Part 1 point 4): scroll only when the sentence
+  // anchor has left the middle 50% of the scroller (25% margins), centring
+  // smoothly. Our own scroll is fenced by policy.beginSelfScroll() so it does not
+  // read as a user scroll and break following.
   private follow(sentence: number): void {
-    const first = this.entries.find((e) => e.sentence === sentence && this.rangeByWord.has(e.index));
-    if (!first) return;
-    const range = this.rangeByWord.get(first.index);
-    if (!range) return;
-    const node = range.startContainer;
-    const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
+    const el = this.anchorEl(sentence);
+    if (!el) return;
     try {
-      el?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      const rect = el.getBoundingClientRect();
+      const view = this.scroller.getBoundingClientRect();
+      const margin = view.height * 0.25;
+      if (rect.top < view.top + margin || rect.bottom > view.bottom - margin) {
+        this.policy.beginSelfScroll();
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
     } catch {
       /* scrolling can throw if the node detached mid-teardown; skip the follow */
     }
+  }
+
+  // Unconditional centre scroll for the return chip.
+  private scrollSentenceToCenter(sentence: number): void {
+    const el = this.anchorEl(sentence);
+    if (!el) return;
+    try {
+      this.policy.beginSelfScroll();
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    } catch {
+      /* node detached mid-teardown; skip */
+    }
+  }
+
+  // The element hosting a sentence's first aligned range, for scroll measurement.
+  private anchorEl(sentence: number): HTMLElement | null {
+    const first = this.entries.find((e) => e.sentence === sentence && this.rangeByWord.has(e.index));
+    if (!first) return null;
+    const range = this.rangeByWord.get(first.index);
+    if (!range) return null;
+    const node = range.startContainer;
+    const el = node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
+    return (el as HTMLElement | null) ?? null;
   }
 }

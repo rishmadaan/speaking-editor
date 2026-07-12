@@ -15228,7 +15228,7 @@ var require_sender = __commonJS({
 var require_event_target = __commonJS({
   "node_modules/ws/lib/event-target.js"(exports2, module2) {
     "use strict";
-    var { kForOnEventAttribute, kListener } = require_constants(), kCode = /* @__PURE__ */ Symbol("kCode"), kData = /* @__PURE__ */ Symbol("kData"), kError = /* @__PURE__ */ Symbol("kError"), kMessage = /* @__PURE__ */ Symbol("kMessage"), kReason = /* @__PURE__ */ Symbol("kReason"), kTarget = /* @__PURE__ */ Symbol("kTarget"), kType = /* @__PURE__ */ Symbol("kType"), kWasClean = /* @__PURE__ */ Symbol("kWasClean"), Event = class {
+    var { kForOnEventAttribute, kListener } = require_constants(), kCode = /* @__PURE__ */ Symbol("kCode"), kData = /* @__PURE__ */ Symbol("kData"), kError = /* @__PURE__ */ Symbol("kError"), kMessage = /* @__PURE__ */ Symbol("kMessage"), kReason = /* @__PURE__ */ Symbol("kReason"), kTarget = /* @__PURE__ */ Symbol("kTarget"), kType = /* @__PURE__ */ Symbol("kType"), kWasClean = /* @__PURE__ */ Symbol("kWasClean"), Event2 = class {
       /**
        * Create a new `Event`.
        *
@@ -15251,9 +15251,9 @@ var require_event_target = __commonJS({
         return this[kType];
       }
     };
-    Object.defineProperty(Event.prototype, "target", { enumerable: !0 });
-    Object.defineProperty(Event.prototype, "type", { enumerable: !0 });
-    var CloseEvent = class extends Event {
+    Object.defineProperty(Event2.prototype, "target", { enumerable: !0 });
+    Object.defineProperty(Event2.prototype, "type", { enumerable: !0 });
+    var CloseEvent = class extends Event2 {
       /**
        * Create a new `CloseEvent`.
        *
@@ -15292,7 +15292,7 @@ var require_event_target = __commonJS({
     Object.defineProperty(CloseEvent.prototype, "code", { enumerable: !0 });
     Object.defineProperty(CloseEvent.prototype, "reason", { enumerable: !0 });
     Object.defineProperty(CloseEvent.prototype, "wasClean", { enumerable: !0 });
-    var ErrorEvent = class extends Event {
+    var ErrorEvent = class extends Event2 {
       /**
        * Create a new `ErrorEvent`.
        *
@@ -15320,7 +15320,7 @@ var require_event_target = __commonJS({
     };
     Object.defineProperty(ErrorEvent.prototype, "error", { enumerable: !0 });
     Object.defineProperty(ErrorEvent.prototype, "message", { enumerable: !0 });
-    var MessageEvent = class extends Event {
+    var MessageEvent = class extends Event2 {
       /**
        * Create a new `MessageEvent`.
        *
@@ -15384,7 +15384,7 @@ var require_event_target = __commonJS({
           };
         else if (type === "open")
           wrapper = function() {
-            let event = new Event("open");
+            let event = new Event2("open");
             event[kTarget] = this, callListener(handler, this, event);
           };
         else
@@ -15409,7 +15409,7 @@ var require_event_target = __commonJS({
     module2.exports = {
       CloseEvent,
       ErrorEvent,
-      Event,
+      Event: Event2,
       EventTarget,
       MessageEvent
     };
@@ -18730,30 +18730,135 @@ function buildWordEntries(model, docText) {
 
 // src/shell/highlight-surface.ts
 var import_view2 = require("@codemirror/view");
+
+// src/shell/follow-policy.ts
+var FollowPolicy = class {
+  constructor(cb, fallbackMs = 600) {
+    this.cb = cb;
+    this.fallbackMs = fallbackMs;
+  }
+  cb;
+  fallbackMs;
+  _following = !0;
+  _chipVisible = !1;
+  // True while one of OUR programmatic scrolls is in flight, so the scroll events
+  // it emits do not read as a user scroll and break following.
+  selfScrolling = !1;
+  fallbackTimer = null;
+  get following() {
+    return this._following;
+  }
+  get chipVisible() {
+    return this._chipVisible;
+  }
+  // A surface is about to run its own scrollIntoView: guard the scroll events it
+  // will emit. Arms the scrollend fallback in case scrollend never fires.
+  beginSelfScroll() {
+    this.selfScrolling = !0, this.armFallback();
+  }
+  // A scroll happened on the surface's scroller. Ours -> ignored; the user's ->
+  // following breaks and the chip appears (once).
+  handleScroll() {
+    this.selfScrolling || this._following && (this._following = !1, this._chipVisible || (this._chipVisible = !0, this.cb.showChip()));
+  }
+  // The surface's scroller reported scrollend: our self-scroll is done.
+  handleScrollEnd() {
+    this.selfScrolling = !1, this.clearFallback();
+  }
+  // A user jump (click-to-seek): the click IS the new reading position, so
+  // following re-engages and the chip hides, but nothing scrolls.
+  handleJump() {
+    this._following = !0, this.hideChipIfVisible();
+  }
+  // The return chip was clicked: re-engage, hide the chip, and scroll the current
+  // sentence back to centre.
+  handleReturnClick() {
+    this._following = !0, this.hideChipIfVisible(), this.cb.scrollToCurrent();
+  }
+  // Release timers (surface teardown).
+  destroy() {
+    this.clearFallback();
+  }
+  hideChipIfVisible() {
+    this._chipVisible && (this._chipVisible = !1, this.cb.hideChip());
+  }
+  armFallback() {
+    this.clearFallback(), this.fallbackTimer = setTimeout(() => {
+      this.fallbackTimer = null, this.selfScrolling = !1;
+    }, this.fallbackMs);
+  }
+  clearFallback() {
+    this.fallbackTimer !== null && (clearTimeout(this.fallbackTimer), this.fallbackTimer = null);
+  }
+};
+
+// src/shell/highlight-surface.ts
 var CmSurface = class {
-  constructor(view) {
+  constructor(view, hooks = {}) {
     this.view = view;
+    this.policy = new FollowPolicy({
+      showChip: () => hooks.onFollowBreak?.(),
+      hideChip: () => hooks.onFollowReturn?.(),
+      scrollToCurrent: () => this.scrollSentenceToCenter(this.lastSentence)
+    });
+    let scroller = this.view.scrollDOM;
+    scroller.addEventListener("scroll", () => this.policy.handleScroll(), {
+      passive: !0,
+      signal: this.scrollAborter.signal
+    }), scroller.addEventListener("scrollend", () => this.policy.handleScrollEnd(), {
+      passive: !0,
+      signal: this.scrollAborter.signal
+    });
   }
   view;
   kind = "cm";
   entries = [];
+  lastSentence = -1;
+  policy;
+  scrollAborter = new AbortController();
+  torn = !1;
+  get following() {
+    return this.policy.following;
+  }
   seed(entries) {
     this.entries = entries, this.dispatch([setWords.of(entries), setPosition.of({ word: -1, sentence: -1 })]);
   }
   onPosition(word, sentence) {
-    let effects = [setPosition.of({ word, sentence })], first = (this.view.state.field(syncField, !1)?.words ?? this.entries).find((e) => e.sentence === sentence && e.runs.length > 0 && !e.dirty);
-    if (first) {
-      let pos = first.runs[0].from;
-      try {
-        let coords = this.view.coordsAtPos(pos), rect = this.view.scrollDOM.getBoundingClientRect();
-        (!coords || coords.top < rect.top || coords.bottom > rect.bottom) && effects.push(import_view2.EditorView.scrollIntoView(pos, { y: "nearest" }));
-      } catch {
-      }
+    this.lastSentence = sentence;
+    let effects = [setPosition.of({ word, sentence })];
+    if (this.policy.following) {
+      let pos = this.firstRunPos(sentence);
+      if (pos != null)
+        try {
+          let coords = this.view.coordsAtPos(pos), rect = this.view.scrollDOM.getBoundingClientRect(), margin = rect.height * 0.25;
+          (!coords || coords.top < rect.top + margin || coords.bottom > rect.bottom - margin) && (this.policy.beginSelfScroll(), effects.push(import_view2.EditorView.scrollIntoView(pos, { y: "center" })));
+        } catch {
+        }
     }
     this.dispatch(effects);
   }
   clear() {
-    this.dispatch([clearAll.of(null)]);
+    this.torn || (this.torn = !0, this.scrollAborter.abort(), this.policy.destroy()), this.dispatch([clearAll.of(null)]);
+  }
+  // Return chip: re-engage following and re-centre the current sentence.
+  engageFollow() {
+    this.policy.handleReturnClick();
+  }
+  // Click-to-seek: the click is the new reading position, so re-engage without
+  // scrolling (the word is already where the user is looking).
+  notifyJump() {
+    this.policy.handleJump();
+  }
+  // The first clean live run of a sentence, in document offsets. Read LIVE entries
+  // from the field, not the seed-time copy: edits during playback remap field
+  // entries, and a stale anchor would scroll to pre-edit offsets.
+  firstRunPos(sentence) {
+    let first = (this.view.state.field(syncField, !1)?.words ?? this.entries).find((e) => e.sentence === sentence && e.runs.length > 0 && !e.dirty);
+    return first ? first.runs[0].from : null;
+  }
+  scrollSentenceToCenter(sentence) {
+    let pos = this.firstRunPos(sentence);
+    pos != null && (this.policy.beginSelfScroll(), this.dispatch([import_view2.EditorView.scrollIntoView(pos, { y: "center" })]));
   }
   dispatch(effects) {
     try {
@@ -18762,6 +18867,44 @@ var CmSurface = class {
     }
   }
 };
+
+// src/shell/chunk-split.ts
+function splitFirstChunk(chunks, model, minChars = 300, threshold = 600) {
+  if (chunks.length === 0) return chunks;
+  let first = chunks[0];
+  if (first.text.length <= threshold) return chunks;
+  let sents = first.sentenceIndexes;
+  if (sents.length < 2) return chunks;
+  let ends = [], pos = 0;
+  for (let k = 0; k < sents.length; k++)
+    k > 0 && (pos += 1), pos += model.sentences[sents[k]].text.length, ends.push(pos);
+  let splitAfter = -1;
+  for (let k = 0; k < sents.length - 1; k++)
+    if (ends[k] >= minChars) {
+      splitAfter = k;
+      break;
+    }
+  if (splitAfter < 0) return chunks;
+  let cutEnd = ends[splitAfter], secondStart = cutEnd + 1, firstWords = [], secondWords = [];
+  for (let w of first.words)
+    w.charStart < secondStart ? firstWords.push(w) : secondWords.push({
+      wordIndex: w.wordIndex,
+      charStart: w.charStart - secondStart,
+      charEnd: w.charEnd - secondStart
+    });
+  let chunk0a = {
+    index: 0,
+    text: first.text.slice(0, cutEnd),
+    sentenceIndexes: sents.slice(0, splitAfter + 1),
+    words: firstWords
+  }, chunk0b = {
+    index: 1,
+    text: first.text.slice(secondStart),
+    sentenceIndexes: sents.slice(splitAfter + 1),
+    words: secondWords
+  }, rest = chunks.slice(1).map((c) => ({ ...c, index: c.index + 1 }));
+  return [chunk0a, chunk0b, ...rest];
+}
 
 // src/shell/session.ts
 var ENDED_LINGER_MS = 600, ReadingSession = class {
@@ -18804,7 +18947,7 @@ var ENDED_LINGER_MS = 600, ReadingSession = class {
       this.surface = new CmSurface(opts.view);
     else
       throw new Error("ReadingSession needs a surface or a view to build one");
-    this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = buildChunks(this.model), this.entries = buildWordEntries(this.model, opts.docText);
+    this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = splitFirstChunk(buildChunks(this.model), this.model), this.entries = buildWordEntries(this.model, opts.docText);
     let provider = opts.provider ?? new EdgeProvider(), voice = opts.voice ?? provider.defaultVoice;
     this.synthesis = new SynthesisService(provider, voice, opts.cache);
     let cb = {
@@ -18846,7 +18989,23 @@ var ENDED_LINGER_MS = 600, ReadingSession = class {
     this.disposed || (this._state = "idle", this.teardown(), this.onStateCb("idle"));
   }
   seekToWord(wordIndex) {
-    this.disposed || (this.enterPreparing(), this.engine.jumpToWord(wordIndex), this.startLoop());
+    if (this.disposed) return;
+    this.surface.notifyJump?.();
+    let sentence = this.entries[wordIndex]?.sentence ?? -1;
+    wordIndex >= 0 && sentence >= 0 && (this._currentWord = wordIndex, this._currentSentence = sentence, this.surface.onPosition(wordIndex, sentence)), this.enterPreparing(), this.engine.jumpToWord(wordIndex), this.startLoop();
+  }
+  // Return-chip click: re-engage following and re-centre the current sentence.
+  engageFollow() {
+    this.disposed || this.surface.engageFollow?.();
+  }
+  // Whether the surface is currently following the reading (acceptance checks).
+  get following() {
+    return this.surface.following ?? !0;
+  }
+  // Acceptance-only: the character length of the (possibly split) first chunk, so
+  // check 33 can assert the fast-start split made chunk 0 small.
+  get acceptanceChunk0Length() {
+    return this.chunks[0]?.text.length ?? 0;
   }
   // Reading-mode click-to-seek: hand a viewport point to the surface, which maps
   // it to the nearest aligned word, and seek there. Returns true when a word was
@@ -19002,8 +19161,19 @@ function collectTextNodes(root) {
   return out;
 }
 var RangeSurface = class {
-  constructor(container) {
+  constructor(container, hooks = {}) {
     this.container = container;
+    this.policy = new FollowPolicy({
+      showChip: () => hooks.onFollowBreak?.(),
+      hideChip: () => hooks.onFollowReturn?.(),
+      scrollToCurrent: () => this.scrollSentenceToCenter(this.lastSentence)
+    }), this.scroller = container.closest(".markdown-preview-view") ?? container, this.scroller.addEventListener("scroll", () => this.policy.handleScroll(), {
+      passive: !0,
+      signal: this.scrollAborter.signal
+    }), this.scroller.addEventListener("scrollend", () => this.policy.handleScrollEnd(), {
+      passive: !0,
+      signal: this.scrollAborter.signal
+    });
   }
   container;
   _kind = "none";
@@ -19015,8 +19185,16 @@ var RangeSurface = class {
   wordHi = new Highlight();
   sentenceHi = new Highlight();
   registered = !1;
+  lastSentence = -1;
+  policy;
+  scroller;
+  scrollAborter = new AbortController();
+  torn = !1;
   get kind() {
     return this._kind;
+  }
+  get following() {
+    return this.policy.following;
   }
   seed(entries) {
     this.entries = entries;
@@ -19043,17 +19221,25 @@ var RangeSurface = class {
   }
   onPosition(word, sentence) {
     if (this._kind !== "range") return;
-    this.wordHi.clear(), this.sentenceHi.clear();
+    this.lastSentence = sentence, this.wordHi.clear(), this.sentenceHi.clear();
     for (let e of this.entries) {
       if (e.sentence !== sentence) continue;
       let r = this.rangeByWord.get(e.index);
       r && this.sentenceHi.add(r);
     }
     let wr = this.rangeByWord.get(word);
-    wr && this.wordHi.add(wr), this.follow(sentence);
+    wr && this.wordHi.add(wr), this.policy.following && this.follow(sentence);
   }
   clear() {
-    this.wordHi.clear(), this.sentenceHi.clear(), this.registered && (CSS.highlights.delete(WORD_HIGHLIGHT), CSS.highlights.delete(SENTENCE_HIGHLIGHT), this.registered = !1), this.rangeByWord.clear(), this.ordered = [], this._kind = "none";
+    this.torn || (this.torn = !0, this.scrollAborter.abort(), this.policy.destroy()), this.wordHi.clear(), this.sentenceHi.clear(), this.registered && (CSS.highlights.delete(WORD_HIGHLIGHT), CSS.highlights.delete(SENTENCE_HIGHLIGHT), this.registered = !1), this.rangeByWord.clear(), this.ordered = [], this._kind = "none";
+  }
+  // Return chip: re-engage following and re-centre the current sentence.
+  engageFollow() {
+    this.policy.handleReturnClick();
+  }
+  // Click-to-seek: re-engage following in place, no scroll.
+  notifyJump() {
+    this.policy.handleJump();
   }
   // Map a viewport point to the nearest aligned word: the word whose range
   // contains the caret, else the first aligned word that begins after it (the
@@ -19079,21 +19265,55 @@ var RangeSurface = class {
     let r = this.rangeByWord.get(word);
     return r ? r.getBoundingClientRect() : null;
   }
-  // Gentle follow: scroll the sentence's first aligned range into view with block
-  // "nearest", which only moves the viewport when the anchor has left the visible
-  // band, matching the live-preview leave-the-band policy.
+  // Comfort-band follow (spec 0012 Part 1 point 4): scroll only when the sentence
+  // anchor has left the middle 50% of the scroller (25% margins), centring
+  // smoothly. Our own scroll is fenced by policy.beginSelfScroll() so it does not
+  // read as a user scroll and break following.
   follow(sentence) {
+    let el = this.anchorEl(sentence);
+    if (el)
+      try {
+        let rect = el.getBoundingClientRect(), view = this.scroller.getBoundingClientRect(), margin = view.height * 0.25;
+        (rect.top < view.top + margin || rect.bottom > view.bottom - margin) && (this.policy.beginSelfScroll(), el.scrollIntoView({ block: "center", behavior: "smooth" }));
+      } catch {
+      }
+  }
+  // Unconditional centre scroll for the return chip.
+  scrollSentenceToCenter(sentence) {
+    let el = this.anchorEl(sentence);
+    if (el)
+      try {
+        this.policy.beginSelfScroll(), el.scrollIntoView({ block: "center", behavior: "smooth" });
+      } catch {
+      }
+  }
+  // The element hosting a sentence's first aligned range, for scroll measurement.
+  anchorEl(sentence) {
     let first = this.entries.find((e) => e.sentence === sentence && this.rangeByWord.has(e.index));
-    if (!first) return;
+    if (!first) return null;
     let range = this.rangeByWord.get(first.index);
-    if (!range) return;
-    let node = range.startContainer, el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-    try {
-      el?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    } catch {
-    }
+    if (!range) return null;
+    let node = range.startContainer;
+    return (node.nodeType === Node.TEXT_NODE ? node.parentElement : node) ?? null;
   }
 };
+
+// src/shell/return-chip.ts
+function createReturnChip(doc, opts) {
+  let el = doc.createElement("button");
+  return el.className = "se-return", el.type = "button", el.tabIndex = -1, el.setAttribute("aria-hidden", "true"), el.textContent = "Return to reading", el.addEventListener("mousedown", (e) => e.preventDefault()), el.addEventListener("click", () => opts.onReturn()), {
+    el,
+    show() {
+      el.classList.add("se-return-visible");
+    },
+    hide() {
+      el.classList.remove("se-return-visible");
+    },
+    destroy() {
+      el.remove();
+    }
+  };
+}
 
 // src/shell/acceptance.ts
 var import_obsidian = require("obsidian"), import_view3 = require("@codemirror/view"), import_fs3 = require("fs"), import_os2 = require("os"), import_path3 = require("path");
@@ -19876,11 +20096,78 @@ ARMED: waiting for the window to become visible (10 minute limit)...
     let tipShown30 = await waitUntil(noticeWithTip, 3e3), flagFlipped30 = !!plugin.settings.firstPlayTipShown;
     plugin.acceptanceDisposeSession(), await waitUntil(() => !noticeWithTip(), 8e3), plugin.acceptanceStartSession(cm, NOTE), await sleep(600);
     let tipAgain30 = noticeWithTip();
-    if (plugin.acceptanceDisposeSession(), check(
+    plugin.acceptanceDisposeSession(), check(
       "first play ever shows the one-time tip notice and flips the flag; second play stays quiet",
       tipShown30 && flagFlipped30 && !tipAgain30,
       `tipShown=${tipShown30}, flagFlipped=${flagFlipped30}, tipOnSecondPlay=${tipAgain30}`
-    ), hiddenMidRun()) {
+    ), plugin.acceptanceDisposeSession();
+    let BIG_NOTE = "Skeleton Large.md", bigSentences = [];
+    for (let i = 1; i <= 800; i++)
+      bigSentences.push(`This is ordinary sentence number ${i} with plenty of plain words to read.`);
+    let bigParagraphs = [];
+    for (let p = 0; p < bigSentences.length; p += 5)
+      bigParagraphs.push(bigSentences.slice(p, p + 5).join(" "));
+    let BIG_TEXT = bigParagraphs.join(`
+
+`) + `
+`;
+    await app.vault.adapter.write(BIG_NOTE, BIG_TEXT);
+    let bigLeaf = app.workspace.getLeaf(!0);
+    await bigLeaf.openFile(getFileByName(BIG_NOTE));
+    let bigView = bigLeaf.view;
+    await bigView.setState(
+      { ...bigView.getState(), mode: "source", source: !1 },
+      { history: !1 }
+    ), await sleep(200);
+    let bigCm = bigView.editor.cm, bigField = () => bigCm.state.field(syncField), returnChipVisible = () => !!document.querySelector(".se-return.se-return-visible");
+    plugin.acceptanceClearPosition(BIG_NOTE), plugin.acceptanceStartSession(bigCm, BIG_NOTE);
+    let started31 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && bigField().word >= 2,
+      12e3
+    ), brokeFollowing31 = await waitUntil(() => (bigCm.scrollDOM.dispatchEvent(new Event("scroll")), plugin.acceptanceSession()?.following === !1), 6e3, 100), chipVisible31 = returnChipVisible();
+    await sleep(500);
+    let scrollAtBreak31 = bigCm.scrollDOM.scrollTop, sentAtBreak31 = bigField().sentence, advanced31 = await waitUntil(
+      () => bigField().sentence !== sentAtBreak31 && bigField().sentence >= 0,
+      1e4
+    ), scrollFrozen31 = bigCm.scrollDOM.scrollTop === scrollAtBreak31;
+    check(
+      "spec 0012: a user scroll breaks following (chip shows) and stops auto-scroll on the next sentence change",
+      started31 && brokeFollowing31 && chipVisible31 && advanced31 && scrollFrozen31,
+      `started=${started31}, broke=${brokeFollowing31}, chipVisible=${chipVisible31}, sentenceAdvanced=${advanced31}, scrollFrozen=${scrollFrozen31} (scrollTop stayed ${scrollAtBreak31})`
+    );
+    let scrollBeforeReturn32 = bigCm.scrollDOM.scrollTop;
+    document.querySelector(".se-return")?.dispatchEvent(new MouseEvent("click", { bubbles: !0 }));
+    let chipHidden32 = await waitUntil(() => !returnChipVisible(), 2e3), followingResumed32 = plugin.acceptanceSession()?.following === !0, recentred32 = await waitUntil(() => bigCm.scrollDOM.scrollTop !== scrollBeforeReturn32, 4e3);
+    await sleep(600);
+    let scrollAfterRecentre32 = bigCm.scrollDOM.scrollTop, autoScrollsAgain32 = await waitUntil(
+      () => bigCm.scrollDOM.scrollTop !== scrollAfterRecentre32,
+      25e3
+    );
+    check(
+      "spec 0012: the return chip re-centres, hides, and following resumes (auto-scroll returns)",
+      chipHidden32 && followingResumed32 && recentred32 && autoScrollsAgain32,
+      `chipHidden=${chipHidden32}, followingResumed=${followingResumed32}, recentred=${recentred32}, autoScrollsAgain=${autoScrollsAgain32}`
+    ), plugin.acceptanceDisposeSession(), plugin.acceptanceClearPosition(BIG_NOTE), plugin.acceptanceStartSession(bigCm, BIG_NOTE);
+    let sawWordZero33 = !1, reachedPlaying33 = await waitUntil(() => (bigField().word === 0 && (sawWordZero33 = !0), plugin.acceptanceSession()?.state === "playing" && bigField().word >= 0), 12e3), chunk0Len33 = plugin.acceptanceSession()?.acceptanceChunk0Length ?? -1;
+    check(
+      "spec 0012 fast start: split chunk 0 is under 700 chars and playback reaches playing with word 0 painted",
+      reachedPlaying33 && sawWordZero33 && chunk0Len33 > 0 && chunk0Len33 < 700,
+      `chunk0Length=${chunk0Len33} (<700 expected), reachedPlaying=${reachedPlaying33}, sawWord0=${sawWordZero33}, word=${bigField().word}`
+    ), plugin.acceptanceDisposeSession(), plugin.acceptanceClearPosition(BIG_NOTE), plugin.acceptanceStartSession(bigCm, BIG_NOTE);
+    let started34 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && bigField().word >= 0,
+      12e3
+    ), clickable34 = bigField().words.filter((e) => e.runs.length > 0), far34 = clickable34[Math.floor(clickable34.length * 0.8)], t0_34 = performance.now();
+    plugin.acceptanceSession()?.seekToWord(far34.index);
+    let stateAfterSeek34 = plugin.acceptanceSession()?.state, painted34 = await waitUntil(() => bigField().word === far34.index, 200), paintMs34 = performance.now() - t0_34, preparing34 = stateAfterSeek34 === "preparing", arrived34 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && bigField().sentence === far34.sentence,
+      25e3
+    );
+    if (check(
+      "spec 0012 optimistic seek: a far-chunk click paints the word within 200ms (preparing), audio arrives there",
+      started34 && painted34 && preparing34 && arrived34,
+      `paintedWithin200ms=${painted34} (${paintMs34.toFixed(0)}ms), stateAfterSeek=${stateAfterSeek34}, arrivedAtSentence=${arrived34}, target word=${far34.index} sentence=${far34.sentence}, current word=${bigField().word}`
+    ), plugin.acceptanceDisposeSession(), hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
     }
@@ -20432,6 +20719,9 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   // The first-jump teaching hint currently on screen, if any: while one is up we
   // do not create a second (spec 0009 point 3). Cleared when it self-dismisses.
   seekHint = null;
+  // The "Return to reading" chip (spec 0012), one per live session, mounted near
+  // the pill anchor and shown/hidden by the surface's follow policy.
+  returnChip = null;
   // ONE disk cache for every session, built at load and rebuilt on a size change.
   cache;
   // Warm start (spec 0010 point 4): true once the plugin has played at least once
@@ -20536,7 +20826,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   restartFromTop(cm, uri) {
     this.warmUpController?.abort(), this.disposeSession(), this.positions = clearPosition(this.positions, uri), this.positionThrottle.flush();
     let ctx = this.resolveSurfaceContext();
-    this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container, this.session = this.buildSession(cm, uri), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause();
+    this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container, this.session = this.buildSession(cm, uri), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.ensureReturnChip(), this.session.playPause();
   }
   async toggleListeningMode() {
     await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian3.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
@@ -20571,7 +20861,10 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   }
   // ─── Session wiring ──────────────────────────────────────────────────────────
   buildSession(cm, uri, primeAtWord) {
-    let provider = buildProvider(this.settings.providerId, this.keyStore), voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice), surface = this.sessionMode === "reading" && this.sessionReadingContainer ? new RangeSurface(this.sessionReadingContainer) : new CmSurface(cm);
+    let provider = buildProvider(this.settings.providerId, this.keyStore), voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice), followHooks = {
+      onFollowBreak: () => this.returnChip?.show(),
+      onFollowReturn: () => this.returnChip?.hide()
+    }, surface = this.sessionMode === "reading" && this.sessionReadingContainer ? new RangeSurface(this.sessionReadingContainer, followHooks) : new CmSurface(cm, followHooks);
     return new ReadingSession({
       docText: cm.state.doc.toString(),
       uri,
@@ -20639,20 +20932,20 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
       let model = parseDocument(cm.state.doc.toString(), uri, 1);
       primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
     }
-    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian3.Notice("Resumed where you left off"), this.settings.firstPlayTipShown || (this.settings.firstPlayTipShown = !0, this.saveSettings(), new import_obsidian3.Notice("Tip: click any word to jump the reading there."));
+    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.ensureReturnChip(), this.session.playPause(), primeAtWord != null && new import_obsidian3.Notice("Resumed where you left off"), this.settings.firstPlayTipShown || (this.settings.firstPlayTipShown = !0, this.saveSettings(), new import_obsidian3.Notice("Tip: click any word to jump the reading there."));
   }
   stopSession() {
     this.session && (this.session.stop(), this.positionThrottle.flush(), this.updateRibbon("idle"));
   }
   disposeSession() {
-    this.destroyPill(), this.seekHint?.remove(), this.seekHint = null, this.session?.dispose(), this.session = null, this.sessionView = null, this.sessionMdView = null, this.sessionReadingContainer = null, this.pillAnchor = null, this.updateRibbon("idle");
+    this.destroyPill(), this.destroyReturnChip(), this.seekHint?.remove(), this.seekHint = null, this.session?.dispose(), this.session = null, this.sessionView = null, this.sessionMdView = null, this.sessionReadingContainer = null, this.pillAnchor = null, this.updateRibbon("idle");
   }
   onSessionState(state, message) {
     if (this.updateRibbon(state), state === "ended" && (this.positions = clearPosition(this.positions, this.sessionUri), this.positionThrottle.flush()), state === "error") {
-      this.showSessionError(message), this.destroyPill();
+      this.showSessionError(message), this.destroyPill(), this.destroyReturnChip();
       return;
     }
-    state === "playing" || state === "paused" || state === "preparing" ? (this.ensurePill(), this.pill?.setState(state), this.pill?.setPreparing(state === "preparing"), state === "playing" && (this.playedOnce = !0, this.updateRemainingLabel())) : this.fadePillOut();
+    state === "playing" || state === "paused" || state === "preparing" ? (this.ensurePill(), this.pill?.setState(state), this.pill?.setPreparing(state === "preparing"), state === "playing" && (this.playedOnce = !0, this.updateRemainingLabel())) : (this.fadePillOut(), this.returnChip?.hide());
   }
   // Fade the current pill out (opacity only) and remove it. The reference is
   // released now so a fresh play mounts a brand-new pill rather than reviving this
@@ -20705,6 +20998,19 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   }
   destroyPill() {
     this.pill?.destroy(), this.pill = null;
+  }
+  // Mount the return chip at the pill anchor (above the pill), hidden until the
+  // surface's follow policy shows it. Clicking it re-engages following and snaps
+  // the current sentence to centre. One per session, destroyed with the session.
+  ensureReturnChip() {
+    if (this.returnChip || !this.session) return;
+    let anchor = this.pillAnchor ?? this.sessionView?.dom;
+    anchor && (this.returnChip = createReturnChip(document, {
+      onReturn: () => this.session?.engageFollow()
+    }), anchor.appendChild(this.returnChip.el));
+  }
+  destroyReturnChip() {
+    this.returnChip?.destroy(), this.returnChip = null;
   }
   // The current voice's display label from the resolved voice cache, else the raw
   // voice id (the cache may not have filled yet).

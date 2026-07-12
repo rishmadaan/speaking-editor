@@ -205,6 +205,39 @@
   opacity: 1;
 }
 
+/* The "Return to reading" chip (spec 0012 Part 1). Anchored above the pill,
+   bottom-center of the editor. Same manners as the pill and hint: opacity is the
+   ONLY animated property (the calm rule, nothing moves), and it never takes focus
+   (tabindex -1 + mousedown preventDefault on the element). Hidden by default with
+   pointer-events off so it cannot be clicked while faded out. Theme variables only. */
+
+.se-return {
+  position: absolute;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--layer-popover, 30);
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  box-shadow: var(--shadow-s);
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.se-return.se-return-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* The ear's word (spec 0011): dim when listening mode is off, accent when on. */
 .se-pill-ear-label {
   font-size: 11px;
