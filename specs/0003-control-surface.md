@@ -1,6 +1,6 @@
 # 0003: Control surface (settings, providers, speed, listening mode)
 
-Status: building
+Status: built (167 tests green; live 10-check run armed, fires when the window is opened; manual pass pending)
 Date: 2026-07-12
 Depends on: 0001, 0002. The player bar's on-screen placement is a separate
 taste decision (mockups with Rishabh); this spec is everything the player
