@@ -1,0 +1,9 @@
+{
+  "id": "speaking-editor",
+  "name": "Speaking Editor",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Read your notes aloud with word-by-word highlighting that follows along in the editor. A zero-key text to speech read-aloud reader for your vault.",
+  "author": "Rishabh",
+  "isDesktopOnly": true
+}

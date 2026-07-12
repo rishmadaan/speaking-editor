@@ -1,0 +1,16 @@
+/* Highlight styles for Speaking Editor. Theme variables only, so light and dark
+   both read well with no hardcoded colors. The sentence gets a translucent accent
+   band; the current word gets the editor's own text-highlight background. */
+
+.se-sentence {
+  /* translucent accent band derived from the theme accent, falling back to the
+     native text-selection colour if color-mix is unavailable */
+  background-color: var(--text-selection);
+  background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+  border-radius: 2px;
+}
+
+.se-word {
+  background-color: var(--text-highlight-bg);
+  border-radius: 3px;
+}
