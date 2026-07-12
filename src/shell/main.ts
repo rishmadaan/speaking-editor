@@ -508,7 +508,10 @@ export default class SpeakingEditorPlugin extends Plugin {
       applySpeed: (speed) => void this.applySpeed(speed),
       openSettings: () => this.openSettingsTab(),
     });
-    menu.showAtMouseEvent(evt);
+    // showAtPosition, not showAtMouseEvent: the position API depends only on
+    // coordinates, so it behaves identically for real clicks and for the
+    // verification harness's synthetic ones (which have no dispatch context).
+    menu.showAtPosition({ x: evt.clientX, y: evt.clientY });
   }
 
   // Voice control: the async two-section menu (providers + the active provider's
@@ -532,7 +535,7 @@ export default class SpeakingEditorPlugin extends Plugin {
       },
       setVoiceLoading: (on) => this.pill?.setVoiceLoading(on),
       buildMenu: () => new Menu(),
-      showMenu: (menu) => menu.showAtMouseEvent(evt),
+      showMenu: (menu) => menu.showAtPosition({ x: evt.clientX, y: evt.clientY }),
     });
   }
 

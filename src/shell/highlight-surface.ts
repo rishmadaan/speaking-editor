@@ -49,7 +49,10 @@ export class CmSurface implements HighlightSurface {
 
   seed(entries: WordEntry[]): void {
     this.entries = entries;
-    this.dispatch([setWords.of(entries)]);
+    // Reset the position along with the entries: the field keeps the previous
+    // session's word until the new session's first tick, and that stale word
+    // would paint (and be read back by capture logic) as if it were current.
+    this.dispatch([setWords.of(entries), setPosition.of({ word: -1, sentence: -1 })]);
   }
 
   onPosition(word: number, sentence: number): void {

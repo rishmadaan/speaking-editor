@@ -1,13 +1,15 @@
 {
   "providerId": "edge",
-  "voiceByProvider": {},
+  "voiceByProvider": {
+    "edge": "en-US-AriaNeural"
+  },
   "speed": 1.5,
   "listeningMode": true,
   "cacheSizeMb": 200,
   "positions": {
     "Skeleton Note.md": {
-      "wordIndex": 0,
-      "ts": 1783870851660
+      "wordIndex": 12,
+      "ts": 1783872104777
     }
   }
 }
