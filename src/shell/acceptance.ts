@@ -8,6 +8,7 @@ import { EditorView } from "@codemirror/view";
 import { syncField } from "./sync-field";
 import { ReadingSession } from "./session";
 import { WordEntry } from "./word-runs";
+import { nextPreset } from "./player-pill";
 import type SpeakingEditorPlugin from "./main";
 
 const REPORT = "skeleton-acceptance.md";
@@ -403,6 +404,99 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       playing10 && primedPaused && resumed,
       `captured=${capturedWord} (sentence ${capturedSentence}, start ${firstWord10}), primedPaused=${primedPaused}, resumedAt=${field().word}, newVoice=${voiceB}`
     );
+
+    // ─── Floating pill checks (spec 0004) ────────────────────────────────────
+    // Drive the real plugin session path so a real pill mounts, then exercise its
+    // actual DOM controls (query by the se-pill classes) exactly as a user would.
+    const pillEl = () => document.querySelector(".se-pill") as HTMLElement | null;
+    const pillCount = () => document.querySelectorAll(".se-pill").length;
+    const clickPill = (sel: string): boolean => {
+      const el = document.querySelector(sel) as HTMLElement | null;
+      if (!el) return false;
+      el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      return true;
+    };
+
+    // 11. Starting a session (plugin path) mounts exactly one pill inside that
+    //     editor's container, and its play control reflects "playing".
+    plugin.settings.speed = 1.0; // known preset so check 13 is deterministic
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started11 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && !!pillEl(),
+      6000
+    );
+    const anchor11 = (cm.scrollDOM.offsetParent as HTMLElement | null) ?? cm.dom;
+    const pill11 = pillEl();
+    const play11 = document.querySelector(".se-pill-play") as HTMLElement | null;
+    check(
+      "starting a session mounts exactly one pill in the editor; play reflects playing",
+      started11 && pillCount() === 1 && !!pill11 && anchor11.contains(pill11) && play11?.dataset.icon === "pause",
+      `started=${started11}, pills=${pillCount()}, anchored=${pill11 ? anchor11.contains(pill11) : false}, playGlyph=${play11?.dataset.icon}`
+    );
+
+    // 12. Clicking the pill's play control pauses (glyph flips to play); clicking
+    //     again resumes (glyph flips back to pause).
+    const clickedPause = clickPill(".se-pill-play");
+    const paused12 = await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 2000);
+    const pauseGlyph = (document.querySelector(".se-pill-play") as HTMLElement | null)?.dataset.icon;
+    const clickedResume = clickPill(".se-pill-play");
+    const resumed12 = await waitUntil(() => plugin.acceptanceSession()?.state === "playing", 3000);
+    const resumeGlyph = (document.querySelector(".se-pill-play") as HTMLElement | null)?.dataset.icon;
+    check(
+      "clicking the pill play control pauses then resumes, glyph tracking state",
+      clickedPause && paused12 && pauseGlyph === "play" && clickedResume && resumed12 && resumeGlyph === "pause",
+      `paused=${paused12} (glyph ${pauseGlyph}), resumed=${resumed12} (glyph ${resumeGlyph})`
+    );
+
+    // 13. Clicking the speed control advances to the next preset: settings.speed
+    //     and the live audio playbackRate both change, and the label shows it.
+    const before13 = plugin.settings.speed;
+    const expected13 = nextPreset(before13, 1);
+    const clicked13 = clickPill(".se-pill-speed");
+    const settingApplied = await waitUntil(() => Math.abs(plugin.settings.speed - expected13) < 1e-9, 1500);
+    const audioApplied = await waitUntil(
+      () => plugin.acceptanceSession()?.audioPlaybackRates.some((r) => Math.abs(r - expected13) < 1e-9) ?? false,
+      1000
+    );
+    const speedLabel = (document.querySelector(".se-pill-speed") as HTMLElement | null)?.textContent ?? "";
+    check(
+      "clicking the pill speed control advances the preset (setting + live audio + label)",
+      clicked13 && settingApplied && audioApplied && speedLabel.includes(String(expected13)),
+      `${before13} -> ${plugin.settings.speed} (expected ${expected13}), rates=[${plugin.acceptanceSession()?.audioPlaybackRates.join(", ")}], label="${speedLabel}"`
+    );
+
+    // 14. A user-like edit fades the pill (opacity < 1 within 200ms) and it
+    //     restores to full opacity within 2.5s without any hover.
+    cm.dispatch({ changes: { from: 0, insert: "Z " } });
+    const faded14 = await waitUntil(() => {
+      const el = pillEl();
+      return !!el && parseFloat(getComputedStyle(el).opacity || "1") < 1;
+    }, 200);
+    const restored14 = await waitUntil(() => {
+      const el = pillEl();
+      return !!el && parseFloat(getComputedStyle(el).opacity || "0") >= 0.99;
+    }, 2500);
+    check(
+      "a user edit fades the pill then it restores to full opacity without a hover",
+      faded14 && restored14,
+      `faded=${faded14}, restored=${restored14}, opacity=${pillEl() ? getComputedStyle(pillEl()!).opacity : "n/a"}`
+    );
+
+    // 15. The pill's stop control removes the pill from the DOM entirely, and a
+    //     fresh play mounts a brand-new one.
+    const clickedStop = clickPill(".se-pill-stop");
+    const removed15 = await waitUntil(() => pillCount() === 0, 2000);
+    plugin.acceptanceStartSession(cm, NOTE);
+    const remounted15 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && pillCount() === 1,
+      6000
+    );
+    check(
+      "the pill stop control removes the pill entirely; a fresh play mounts a new one",
+      clickedStop && removed15 && remounted15 && pillCount() === 1,
+      `stopped=${clickedStop}, removedToZero=${removed15}, freshPills=${pillCount()}`
+    );
+    plugin.acceptanceDisposeSession();
 
     if (hiddenMidRun()) {
       lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the control-surface checks; rAF-driven`, `measurements are invalid. Keep the window visible and rerun.`);

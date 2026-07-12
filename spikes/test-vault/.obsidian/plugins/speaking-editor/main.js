@@ -18029,7 +18029,7 @@ __export(main_exports, {
   default: () => SpeakingEditorPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian2 = require("obsidian");
+var import_obsidian2 = require("obsidian"), import_view4 = require("@codemirror/view");
 
 // src/shell/sync-field.ts
 var import_state = require("@codemirror/state"), import_view = require("@codemirror/view"), setWords = import_state.StateEffect.define(), setPosition = import_state.StateEffect.define(), clearAll = import_state.StateEffect.define();
@@ -18856,6 +18856,90 @@ var ReadingSession = class {
 
 // src/shell/acceptance.ts
 var import_view3 = require("@codemirror/view");
+
+// src/shell/player-pill.ts
+var SPEED_PRESETS = [0.8, 1, 1.2, 1.5, 2, 2.5, 3];
+function nextPreset(current, direction) {
+  let n = SPEED_PRESETS.length, closest = 0, best = 1 / 0;
+  for (let i = 0; i < n; i++) {
+    let d = Math.abs(SPEED_PRESETS[i] - current);
+    d < best && (best = d, closest = i);
+  }
+  let idx = (closest + direction + n) % n;
+  return SPEED_PRESETS[idx];
+}
+var FADE_RESTORE_MS = 1500, FALLBACK_GLYPH = {
+  play: "\u25B6",
+  // right-pointing triangle
+  pause: "\u23F8",
+  // double bar
+  ear: "\u25D1",
+  // half circle (stand-in)
+  x: "\u2715"
+  // multiplication x
+};
+function formatRate(rate) {
+  return `${Number(rate.toFixed(2))}x`;
+}
+var PlayerPill = class {
+  constructor(cb, opts = {}) {
+    this.cb = cb;
+    this.renderIcon = opts.renderIcon, this.root = document.createElement("div"), this.root.className = "se-pill", this.root.setAttribute("role", "toolbar"), this.root.setAttribute("aria-label", "Reading controls"), this.root.addEventListener("mousedown", (e) => e.preventDefault()), this.root.addEventListener("pointerenter", () => this.restore()), this.buildControls(), this.setControlIcon(this.playBtn, "play"), this.setControlIcon(this.earBtn, "ear"), this.setControlIcon(this.stopBtn, "x"), this.setSpeed(1), this.setVoiceLabel(""), this.setListening(!0);
+  }
+  cb;
+  root;
+  playBtn;
+  speedBtn;
+  voiceBtn;
+  earBtn;
+  stopBtn;
+  renderIcon;
+  fadeTimer = null;
+  destroyed = !1;
+  // ─── Public API ────────────────────────────────────────────────────────────
+  mount(container) {
+    container.appendChild(this.root);
+  }
+  setState(state) {
+    this.setControlIcon(this.playBtn, state === "playing" ? "pause" : "play");
+  }
+  setSpeed(rate) {
+    this.speedBtn.textContent = formatRate(rate);
+  }
+  setVoiceLabel(label) {
+    this.voiceBtn.textContent = label, this.voiceBtn.setAttribute("title", label);
+  }
+  setListening(on) {
+    this.earBtn.classList.toggle("se-pill-ear-active", on), this.earBtn.classList.toggle("se-pill-ear-off", !on);
+  }
+  // A user edit landed: fade now, and arm the restore for a lull.
+  notifyTyping() {
+    this.destroyed || (this.root.classList.add("se-pill-faded"), this.fadeTimer != null && clearTimeout(this.fadeTimer), this.fadeTimer = setTimeout(() => {
+      this.fadeTimer = null, this.root.classList.remove("se-pill-faded");
+    }, FADE_RESTORE_MS));
+  }
+  destroy() {
+    this.destroyed = !0, this.fadeTimer != null && (clearTimeout(this.fadeTimer), this.fadeTimer = null), this.root.remove();
+  }
+  // ─── Internals ───────────────────────────────────────────────────────────────
+  buildControls() {
+    this.playBtn = this.makeControl("se-pill-play", "Play or pause"), this.playBtn.addEventListener("click", () => this.cb.onPlayPause()), this.speedBtn = this.makeControl("se-pill-speed", "Reading speed (right-click to slow)"), this.speedBtn.addEventListener("click", () => this.cb.onSpeed(1)), this.speedBtn.addEventListener("contextmenu", (e) => {
+      e.preventDefault(), this.cb.onSpeed(-1);
+    }), this.voiceBtn = this.makeControl("se-pill-voice", "Change voice"), this.voiceBtn.addEventListener("click", () => this.cb.onVoice()), this.earBtn = this.makeControl("se-pill-ear", "Listening mode"), this.earBtn.addEventListener("click", () => this.cb.onListening()), this.stopBtn = this.makeControl("se-pill-stop", "Stop reading"), this.stopBtn.addEventListener("click", () => this.cb.onStop());
+  }
+  makeControl(cls, aria) {
+    let b = document.createElement("button");
+    return b.className = cls, b.type = "button", b.setAttribute("tabindex", "-1"), b.setAttribute("aria-label", aria), this.root.appendChild(b), b;
+  }
+  setControlIcon(el, icon) {
+    el.dataset.icon = icon, this.renderIcon ? (el.textContent = "", this.renderIcon(el, icon)) : el.textContent = FALLBACK_GLYPH[icon] ?? "";
+  }
+  restore() {
+    this.fadeTimer != null && (clearTimeout(this.fadeTimer), this.fadeTimer = null), this.root.classList.remove("se-pill-faded");
+  }
+};
+
+// src/shell/acceptance.ts
 var REPORT = "skeleton-acceptance.md", NOTE = "Skeleton Note.md", FIXTURE = `---
 title: Skeleton fixture
 ---
@@ -19103,11 +19187,63 @@ ARMED: waiting for the window to become visible (10 minute limit)...
       () => session.state === "playing" && (field().word === capturedWord || field().word === firstWord10 || field().word === firstWord10 + 1),
       6e3
     );
-    if (check(
+    check(
       "voice change primes paused at the captured word; play resumes there with the new voice",
       playing10 && primedPaused && resumed,
       `captured=${capturedWord} (sentence ${capturedSentence}, start ${firstWord10}), primedPaused=${primedPaused}, resumedAt=${field().word}, newVoice=${voiceB}`
-    ), hiddenMidRun()) {
+    );
+    let pillEl = () => document.querySelector(".se-pill"), pillCount = () => document.querySelectorAll(".se-pill").length, clickPill = (sel) => {
+      let el = document.querySelector(sel);
+      return el ? (el.dispatchEvent(new MouseEvent("click", { bubbles: !0 })), !0) : !1;
+    };
+    plugin.settings.speed = 1, plugin.acceptanceStartSession(cm, NOTE);
+    let started11 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && !!pillEl(),
+      6e3
+    ), anchor11 = cm.scrollDOM.offsetParent ?? cm.dom, pill11 = pillEl(), play11 = document.querySelector(".se-pill-play");
+    check(
+      "starting a session mounts exactly one pill in the editor; play reflects playing",
+      started11 && pillCount() === 1 && !!pill11 && anchor11.contains(pill11) && play11?.dataset.icon === "pause",
+      `started=${started11}, pills=${pillCount()}, anchored=${pill11 ? anchor11.contains(pill11) : !1}, playGlyph=${play11?.dataset.icon}`
+    );
+    let clickedPause = clickPill(".se-pill-play"), paused12 = await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 2e3), pauseGlyph = document.querySelector(".se-pill-play")?.dataset.icon, clickedResume = clickPill(".se-pill-play"), resumed12 = await waitUntil(() => plugin.acceptanceSession()?.state === "playing", 3e3), resumeGlyph = document.querySelector(".se-pill-play")?.dataset.icon;
+    check(
+      "clicking the pill play control pauses then resumes, glyph tracking state",
+      clickedPause && paused12 && pauseGlyph === "play" && clickedResume && resumed12 && resumeGlyph === "pause",
+      `paused=${paused12} (glyph ${pauseGlyph}), resumed=${resumed12} (glyph ${resumeGlyph})`
+    );
+    let before13 = plugin.settings.speed, expected13 = nextPreset(before13, 1), clicked13 = clickPill(".se-pill-speed"), settingApplied = await waitUntil(() => Math.abs(plugin.settings.speed - expected13) < 1e-9, 1500), audioApplied = await waitUntil(
+      () => plugin.acceptanceSession()?.audioPlaybackRates.some((r) => Math.abs(r - expected13) < 1e-9) ?? !1,
+      1e3
+    ), speedLabel = document.querySelector(".se-pill-speed")?.textContent ?? "";
+    check(
+      "clicking the pill speed control advances the preset (setting + live audio + label)",
+      clicked13 && settingApplied && audioApplied && speedLabel.includes(String(expected13)),
+      `${before13} -> ${plugin.settings.speed} (expected ${expected13}), rates=[${plugin.acceptanceSession()?.audioPlaybackRates.join(", ")}], label="${speedLabel}"`
+    ), cm.dispatch({ changes: { from: 0, insert: "Z " } });
+    let faded14 = await waitUntil(() => {
+      let el = pillEl();
+      return !!el && parseFloat(getComputedStyle(el).opacity || "1") < 1;
+    }, 200), restored14 = await waitUntil(() => {
+      let el = pillEl();
+      return !!el && parseFloat(getComputedStyle(el).opacity || "0") >= 0.99;
+    }, 2500);
+    check(
+      "a user edit fades the pill then it restores to full opacity without a hover",
+      faded14 && restored14,
+      `faded=${faded14}, restored=${restored14}, opacity=${pillEl() ? getComputedStyle(pillEl()).opacity : "n/a"}`
+    );
+    let clickedStop = clickPill(".se-pill-stop"), removed15 = await waitUntil(() => pillCount() === 0, 2e3);
+    plugin.acceptanceStartSession(cm, NOTE);
+    let remounted15 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && pillCount() === 1,
+      6e3
+    );
+    if (check(
+      "the pill stop control removes the pill entirely; a fresh play mounts a new one",
+      clickedStop && removed15 && remounted15 && pillCount() === 1,
+      `stopped=${clickedStop}, removedToZero=${removed15}, freshPills=${pillCount()}`
+    ), plugin.acceptanceDisposeSession(), hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
     }
@@ -19388,8 +19524,8 @@ var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
         speedSetting.setDesc(speedDesc(v)), this.plugin.applySpeed(v);
       });
     }), new import_obsidian.Setting(containerEl).setName("Listening mode").setDesc("When on, clicking a word jumps the reading there. When off, clicking edits as normal.").addToggle((tg) => {
-      tg.setValue(settings.listeningMode), tg.onChange(async (on) => {
-        this.plugin.settings.listeningMode = on, await this.plugin.saveSettings();
+      tg.setValue(settings.listeningMode), tg.onChange((on) => {
+        this.plugin.applyListeningMode(on);
       });
     }), provider.requiresKey) {
       let hasKey = this.plugin.keyStore.has(settings.providerId), keySetting = new import_obsidian.Setting(containerEl).setName(`${provider.label} API key`).setDesc(
@@ -19421,8 +19557,13 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
   sessionUri = "untitled";
   ribbonEl = null;
   boundDoms = /* @__PURE__ */ new WeakSet();
+  // Exactly one pill ever exists, tied to the active session's UI.
+  pill = null;
   async onload() {
-    this.settings = mergeSettings(await this.loadData()), this.keyStore = new KeyStore(window.localStorage), this.voiceCache = new VoiceCache(), this.registerEditorExtension(syncField), this.ribbonEl = this.addRibbonIcon("play-circle", "Play or pause reading", () => this.playPause()), this.addCommand({
+    this.settings = mergeSettings(await this.loadData()), this.keyStore = new KeyStore(window.localStorage), this.voiceCache = new VoiceCache(), this.registerEditorExtension([
+      syncField,
+      import_view4.EditorView.updateListener.of((u) => this.onEditorUpdate(u))
+    ]), this.ribbonEl = this.addRibbonIcon("play-circle", "Play or pause reading", () => this.playPause()), this.addCommand({
       id: "play-pause",
       name: "Play or pause reading",
       callback: () => this.playPause()
@@ -19452,21 +19593,27 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
     await this.saveData(this.settings);
   }
   async toggleListeningMode() {
-    this.settings.listeningMode = !this.settings.listeningMode, await this.saveSettings(), new import_obsidian2.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
+    await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian2.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
   }
-  // ─── Live setting application (called by the settings tab) ────────────────────
+  // ─── Live setting application (called by the settings tab and the pill) ────────
+  // Persist the listening flag and reflect it in the pill's ear. The pill ear and
+  // the command go through the toggle wrapper (which adds the Notice); the settings
+  // tab calls this directly (no Notice), so both surfaces keep the pill in sync.
+  async applyListeningMode(on) {
+    this.settings.listeningMode = on, await this.saveSettings(), this.pill?.setListening(on);
+  }
   // Speed applies immediately to the live audio, no rebuild.
   async applySpeed(rate) {
-    this.settings.speed = rate, await this.saveSettings(), this.session?.setSpeed(rate);
+    this.settings.speed = rate, await this.saveSettings(), this.session?.setSpeed(rate), this.pill?.setSpeed(rate);
   }
   // Provider change: persist, then reconfigure any active session in place.
   async applyProvider(providerId) {
-    this.settings.providerId = providerId, await this.saveSettings(), this.reconfigureActiveSession();
+    this.settings.providerId = providerId, await this.saveSettings(), this.reconfigureActiveSession(), this.pill?.setVoiceLabel(this.currentVoiceLabel());
   }
   // Voice change for a provider: remember it, then reconfigure only if that
   // provider is the one currently playing.
   async applyVoice(providerId, voice) {
-    this.settings = rememberVoice(this.settings, providerId, voice), await this.saveSettings(), providerId === this.settings.providerId && this.reconfigureActiveSession();
+    this.settings = rememberVoice(this.settings, providerId, voice), await this.saveSettings(), providerId === this.settings.providerId && (this.reconfigureActiveSession(), this.pill?.setVoiceLabel(this.currentVoiceLabel()));
   }
   // The parent's "surprise audio on switch is jarring" rule: capture the current
   // word, dispose the old session's synthesis and audio, and build a fresh one
@@ -19503,16 +19650,52 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
     }
   }
   startSession(cm, uri) {
-    this.sessionView = cm, this.sessionUri = uri, this.session = this.buildSession(cm, uri), this.bindClickToSeek(cm), this.session.playPause();
+    this.sessionView = cm, this.sessionUri = uri, this.session = this.buildSession(cm, uri), this.bindClickToSeek(cm), this.ensurePill(), this.session.playPause();
   }
   stopSession() {
     this.session && (this.session.stop(), this.updateRibbon("idle"));
   }
   disposeSession() {
-    this.session?.dispose(), this.session = null, this.sessionView = null, this.updateRibbon("idle");
+    this.destroyPill(), this.session?.dispose(), this.session = null, this.sessionView = null, this.updateRibbon("idle");
   }
   onSessionState(state) {
-    this.updateRibbon(state);
+    this.updateRibbon(state), state === "playing" || state === "paused" ? (this.ensurePill(), this.pill?.setState(state)) : this.destroyPill();
+  }
+  // ─── Pill lifecycle ──────────────────────────────────────────────────────────
+  ensurePill() {
+    if (this.pill || !this.session || !this.sessionView) return;
+    let anchor = this.sessionView.scrollDOM.offsetParent ?? this.sessionView.dom;
+    this.pill = new PlayerPill(
+      {
+        onPlayPause: () => this.session?.playPause(),
+        onSpeed: (dir) => {
+          this.applySpeed(nextPreset(this.settings.speed, dir));
+        },
+        onVoice: () => this.openSettingsTab(),
+        onListening: () => {
+          this.toggleListeningMode();
+        },
+        onStop: () => this.stopSession()
+      },
+      { renderIcon: (el, icon) => (0, import_obsidian2.setIcon)(el, icon) }
+    ), this.pill.mount(anchor), this.pill.setState(this.session.state), this.pill.setSpeed(this.settings.speed), this.pill.setListening(this.settings.listeningMode), this.pill.setVoiceLabel(this.currentVoiceLabel());
+  }
+  destroyPill() {
+    this.pill?.destroy(), this.pill = null;
+  }
+  // The current voice's display label from the resolved voice cache, else the raw
+  // voice id (the cache may not have filled yet).
+  currentVoiceLabel() {
+    let provider = buildProvider(this.settings.providerId, this.keyStore), voiceId = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    return this.voiceCache.get(this.settings.providerId)?.find((v) => v.id === voiceId)?.label ?? voiceId;
+  }
+  openSettingsTab() {
+    let setting = this.app.setting;
+    setting.open(), setting.openTabById(this.manifest.id);
+  }
+  // A doc-changing edit on the session editor politely fades the pill.
+  onEditorUpdate(update) {
+    !this.pill || this.sessionView !== update.view || update.docChanged && this.pill.notifyTyping();
   }
   updateRibbon(state) {
     if (!this.ribbonEl) return;

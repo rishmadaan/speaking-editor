@@ -5,7 +5,7 @@
 // tab, and applies setting changes to an active session in place. Acceptance-check
 // command is dev-only (DEV_ACCEPTANCE esbuild define).
 import { MarkdownView, Notice, Plugin, setIcon } from "obsidian";
-import { EditorView } from "@codemirror/view";
+import { EditorView, ViewUpdate } from "@codemirror/view";
 import { syncField } from "./sync-field";
 import { ReadingSession, SessionState } from "./session";
 import { runAcceptance } from "./acceptance";
@@ -14,6 +14,7 @@ import { KeyStore } from "./key-store";
 import { buildProvider } from "./providers";
 import { VoiceCache } from "../engine/synthesis/voice-cache";
 import { SpeakingEditorSettingTab } from "./settings-tab";
+import { PlayerPill, nextPreset } from "./player-pill";
 
 export default class SpeakingEditorPlugin extends Plugin {
   // `declare` narrows the base Plugin's `settings?: unknown` slot (the sanctioned
@@ -27,13 +28,22 @@ export default class SpeakingEditorPlugin extends Plugin {
   private sessionUri = "untitled";
   private ribbonEl: HTMLElement | null = null;
   private boundDoms = new WeakSet<HTMLElement>();
+  // Exactly one pill ever exists, tied to the active session's UI.
+  private pill: PlayerPill | null = null;
 
   async onload() {
     this.settings = mergeSettings(await this.loadData());
     this.keyStore = new KeyStore(window.localStorage);
     this.voiceCache = new VoiceCache();
 
-    this.registerEditorExtension(syncField);
+    // Register the sync field plus a tiny update listener that forwards a user's
+    // typing on the session editor into the pill (spec 0004's polite fade). Only
+    // doc-changing transactions on the session editor count; our own effect-only
+    // dispatches (position, scroll) never change the doc, so they never fade.
+    this.registerEditorExtension([
+      syncField,
+      EditorView.updateListener.of((u) => this.onEditorUpdate(u)),
+    ]);
 
     this.ribbonEl = this.addRibbonIcon("play-circle", "Play or pause reading", () => this.playPause());
 
@@ -79,18 +89,27 @@ export default class SpeakingEditorPlugin extends Plugin {
   }
 
   private async toggleListeningMode() {
-    this.settings.listeningMode = !this.settings.listeningMode;
-    await this.saveSettings();
+    await this.applyListeningMode(!this.settings.listeningMode);
     new Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
   }
 
-  // ─── Live setting application (called by the settings tab) ────────────────────
+  // ─── Live setting application (called by the settings tab and the pill) ────────
+
+  // Persist the listening flag and reflect it in the pill's ear. The pill ear and
+  // the command go through the toggle wrapper (which adds the Notice); the settings
+  // tab calls this directly (no Notice), so both surfaces keep the pill in sync.
+  async applyListeningMode(on: boolean) {
+    this.settings.listeningMode = on;
+    await this.saveSettings();
+    this.pill?.setListening(on);
+  }
 
   // Speed applies immediately to the live audio, no rebuild.
   async applySpeed(rate: number) {
     this.settings.speed = rate;
     await this.saveSettings();
     this.session?.setSpeed(rate);
+    this.pill?.setSpeed(rate);
   }
 
   // Provider change: persist, then reconfigure any active session in place.
@@ -98,6 +117,7 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.settings.providerId = providerId;
     await this.saveSettings();
     this.reconfigureActiveSession();
+    this.pill?.setVoiceLabel(this.currentVoiceLabel());
   }
 
   // Voice change for a provider: remember it, then reconfigure only if that
@@ -105,7 +125,10 @@ export default class SpeakingEditorPlugin extends Plugin {
   async applyVoice(providerId: string, voice: string) {
     this.settings = rememberVoice(this.settings, providerId, voice);
     await this.saveSettings();
-    if (providerId === this.settings.providerId) this.reconfigureActiveSession();
+    if (providerId === this.settings.providerId) {
+      this.reconfigureActiveSession();
+      this.pill?.setVoiceLabel(this.currentVoiceLabel());
+    }
   }
 
   // The parent's "surprise audio on switch is jarring" rule: capture the current
@@ -157,16 +180,18 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.sessionUri = uri;
     this.session = this.buildSession(cm, uri);
     this.bindClickToSeek(cm);
+    this.ensurePill(); // appears the moment a session starts
     this.session.playPause(); // begin playing
   }
 
   private stopSession() {
     if (!this.session) return;
-    this.session.stop();
+    this.session.stop(); // fires onState "idle", which removes the pill
     this.updateRibbon("idle");
   }
 
   private disposeSession() {
+    this.destroyPill();
     this.session?.dispose();
     this.session = null;
     this.sessionView = null;
@@ -175,7 +200,66 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   private onSessionState(state: SessionState) {
     this.updateRibbon(state);
-    // a natural end leaves the session in place so a later play restarts it
+    // The pill lives only while a session is live: a live state ensures it exists
+    // and reflects reality; a terminal state (stop -> idle, natural end, error)
+    // removes it. A later play on a still-alive session recreates a fresh pill.
+    if (state === "playing" || state === "paused") {
+      this.ensurePill();
+      this.pill?.setState(state);
+    } else {
+      this.destroyPill();
+    }
+  }
+
+  // ─── Pill lifecycle ──────────────────────────────────────────────────────────
+
+  private ensurePill() {
+    if (this.pill || !this.session || !this.sessionView) return;
+    // Anchor to the scroller's offset parent (the positioned .cm-editor) so the
+    // pill holds its spot and does not scroll with the text; fall back to the
+    // editor root if the offset parent is not resolvable yet.
+    const anchor = (this.sessionView.scrollDOM.offsetParent as HTMLElement | null) ?? this.sessionView.dom;
+    this.pill = new PlayerPill(
+      {
+        onPlayPause: () => this.session?.playPause(),
+        onSpeed: (dir) => void this.applySpeed(nextPreset(this.settings.speed, dir)),
+        onVoice: () => this.openSettingsTab(),
+        onListening: () => void this.toggleListeningMode(),
+        onStop: () => this.stopSession(),
+      },
+      { renderIcon: (el, icon) => setIcon(el, icon) }
+    );
+    this.pill.mount(anchor);
+    this.pill.setState(this.session.state);
+    this.pill.setSpeed(this.settings.speed);
+    this.pill.setListening(this.settings.listeningMode);
+    this.pill.setVoiceLabel(this.currentVoiceLabel());
+  }
+
+  private destroyPill() {
+    this.pill?.destroy();
+    this.pill = null;
+  }
+
+  // The current voice's display label from the resolved voice cache, else the raw
+  // voice id (the cache may not have filled yet).
+  private currentVoiceLabel(): string {
+    const provider = buildProvider(this.settings.providerId, this.keyStore);
+    const voiceId = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    const cached = this.voiceCache.get(this.settings.providerId);
+    return cached?.find((v) => v.id === voiceId)?.label ?? voiceId;
+  }
+
+  private openSettingsTab() {
+    const setting = (this.app as any).setting;
+    setting.open();
+    setting.openTabById(this.manifest.id);
+  }
+
+  // A doc-changing edit on the session editor politely fades the pill.
+  private onEditorUpdate(update: ViewUpdate) {
+    if (!this.pill || this.sessionView !== update.view) return;
+    if (update.docChanged) this.pill.notifyTyping();
   }
 
   private updateRibbon(state: SessionState) {

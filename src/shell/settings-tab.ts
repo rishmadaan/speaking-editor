@@ -77,10 +77,8 @@ export class SpeakingEditorSettingTab extends PluginSettingTab {
       .setDesc("When on, clicking a word jumps the reading there. When off, clicking edits as normal.")
       .addToggle((tg) => {
         tg.setValue(settings.listeningMode);
-        tg.onChange(async (on) => {
-          this.plugin.settings.listeningMode = on;
-          await this.plugin.saveSettings();
-        });
+        // Route through the plugin so a change here also reflects into the pill's ear.
+        tg.onChange((on) => void this.plugin.applyListeningMode(on));
       });
 
     // Only providers that need a key show the key field, and only for the one in
