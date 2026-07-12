@@ -78,6 +78,7 @@ export class PlayerPill {
   private speedBtn!: HTMLButtonElement;
   private voiceBtn!: HTMLButtonElement;
   private earBtn!: HTMLButtonElement;
+  private earIcon!: HTMLElement;
   private stopBtn!: HTMLButtonElement;
   private remainingEl!: HTMLSpanElement;
   private editedEl!: HTMLSpanElement;
@@ -108,7 +109,7 @@ export class PlayerPill {
 
     // Initial glyphs; text controls fill in via setSpeed / setVoiceLabel.
     this.setControlIcon(this.playBtn, "play");
-    this.setControlIcon(this.earBtn, "ear");
+    this.setControlIcon(this.earIcon, "ear");
     this.setControlIcon(this.stopBtn, "x");
     this.setSpeed(1.0);
     this.setVoiceLabel("");
@@ -262,6 +263,13 @@ export class PlayerPill {
     this.editedEl.setAttribute("title", EDITED_TITLE);
 
     this.earBtn = this.makeControl("se-pill-ear", "Listening mode");
+    // The ear carries its word: an icon span plus a small text label, so the
+    // mode is readable at a glance without hovering (UX review P3).
+    this.earIcon = this.earBtn.appendChild(document.createElement("span"));
+    this.earIcon.className = "se-pill-ear-icon";
+    const earLabel = this.earBtn.appendChild(document.createElement("span"));
+    earLabel.className = "se-pill-ear-label";
+    earLabel.textContent = "listening";
     this.earBtn.addEventListener("click", () => this.cb.onListening());
 
     this.stopBtn = this.makeControl("se-pill-stop", "Stop reading");

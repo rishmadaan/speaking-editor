@@ -204,3 +204,13 @@
 .se-hint.se-hint-visible {
   opacity: 1;
 }
+
+/* The ear's word (spec 0011): dim when listening mode is off, accent when on. */
+.se-pill-ear-label {
+  font-size: 11px;
+  margin-left: 4px;
+  color: var(--text-muted);
+}
+.se-pill-ear-active .se-pill-ear-label {
+  color: var(--interactive-accent);
+}

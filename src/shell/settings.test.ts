@@ -145,3 +145,11 @@ describe("rememberVoice round trip", () => {
     expect(s.voiceByProvider).toEqual({ edge: "b" });
   });
 });
+describe("firstPlayTipShown (spec 0011)", () => {
+  it("defaults false and merges a saved true", () => {
+    expect(mergeSettings(undefined).firstPlayTipShown).toBe(false);
+    expect(mergeSettings({ firstPlayTipShown: true }).firstPlayTipShown).toBe(true);
+    expect(mergeSettings({ firstPlayTipShown: "yes" }).firstPlayTipShown).toBe(false);
+  });
+});
+

@@ -1101,6 +1101,30 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
     removeKey(key1);
     removeKey(key2);
 
+    // 30. First-play tip (spec 0011): with the flag reset, the first plugin-path
+    //     play shows the one-time tip Notice and flips the flag; a second play
+    //     shows no new tip. The settings restore puts the user's flag back.
+    plugin.settings.firstPlayTipShown = false;
+    const tipText = "click any word to jump";
+    const noticeWithTip = () =>
+      Array.from(document.querySelectorAll(".notice")).some((n) => (n.textContent ?? "").includes(tipText));
+    plugin.acceptanceStartSession(cm, NOTE);
+    const tipShown30 = await waitUntil(noticeWithTip, 3000);
+    // Boolean() defeats TS literal narrowing: startSession mutated the flag.
+    const flagFlipped30 = Boolean(plugin.settings.firstPlayTipShown);
+    plugin.acceptanceDisposeSession();
+    // let the tip notice age out of the DOM before the second play samples
+    await waitUntil(() => !noticeWithTip(), 8000);
+    plugin.acceptanceStartSession(cm, NOTE);
+    await sleep(600);
+    const tipAgain30 = noticeWithTip();
+    plugin.acceptanceDisposeSession();
+    check(
+      "first play ever shows the one-time tip notice and flips the flag; second play stays quiet",
+      tipShown30 && flagFlipped30 && !tipAgain30,
+      `tipShown=${tipShown30}, flagFlipped=${flagFlipped30}, tipOnSecondPlay=${tipAgain30}`
+    );
+
     if (hiddenMidRun()) {
       lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the control-surface checks; rAF-driven`, `measurements are invalid. Keep the window visible and rerun.`);
       await write();
@@ -1137,6 +1161,7 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       plugin.settings.voiceByProvider = snap.voiceByProvider;
       plugin.settings.speed = snap.speed;
       plugin.settings.listeningMode = snap.listeningMode;
+      plugin.settings.firstPlayTipShown = snap.firstPlayTipShown;
       plugin.settings.seekHintsShown = snap.seekHintsShown;
       plugin.acceptanceRestorePositions(positionsSnapshot);
       await plugin.saveSettings();

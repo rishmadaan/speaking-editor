@@ -59,6 +59,11 @@ Speaking Editor is **desktop only** (its manifest is flagged `isDesktopOnly`). T
 
 That is the whole loop. Everything else is preference.
 
+**Power use:** assign a keyboard shortcut to "Play or pause reading" under
+**Settings -> Hotkeys** (search "Speaking Editor"). The plugin deliberately
+ships no default hotkey, since defaults collide with everyone's existing
+muscle memory; one assignment makes play/pause a reflex.
+
 ## Install
 
 ### From the Obsidian community plugin list

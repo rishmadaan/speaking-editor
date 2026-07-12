@@ -14,6 +14,8 @@ export interface SpeakingEditorSettings {
   // stops forever (see hint.ts). Persisted so the lesson is not re-taught across
   // restarts; resetting is deliberately not surfaced in the UI.
   seekHintsShown: number;
+  // One-time tip on the first play ever ("click any word to jump").
+  firstPlayTipShown: boolean;
 }
 
 // The offered "Audio cache size" choices, in MB; 200 is the default.
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: SpeakingEditorSettings = {
   listeningMode: true,
   cacheSizeMb: 200,
   seekHintsShown: 0,
+  firstPlayTipShown: false,
 };
 
 // NOTE ON DATA.JSON SHAPE: the persisted payload is the settings object's fields
@@ -57,6 +60,8 @@ export function mergeSettings(saved: unknown): SpeakingEditorSettings {
       typeof s.seekHintsShown === "number" && Number.isFinite(s.seekHintsShown) && s.seekHintsShown >= 0
         ? Math.floor(s.seekHintsShown)
         : DEFAULT_SETTINGS.seekHintsShown,
+    firstPlayTipShown:
+      typeof s.firstPlayTipShown === "boolean" ? s.firstPlayTipShown : DEFAULT_SETTINGS.firstPlayTipShown,
   };
 }
 

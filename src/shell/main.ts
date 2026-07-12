@@ -443,6 +443,13 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.ensurePill(); // appears the moment a session starts
     this.session.playPause(); // begin playing (or resume from the primed word)
     if (primeAtWord != null) new Notice("Resumed where you left off");
+    // The first play EVER teaches the click (the 0009 hint then confirms the
+    // first real jump). Once, then never again; the harness restores the flag.
+    if (!this.settings.firstPlayTipShown) {
+      this.settings.firstPlayTipShown = true;
+      void this.saveSettings();
+      new Notice("Tip: click any word to jump the reading there.");
+    }
   }
 
   private stopSession() {

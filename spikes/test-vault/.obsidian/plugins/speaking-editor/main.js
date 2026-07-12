@@ -19866,11 +19866,21 @@ ARMED: waiting for the window to become visible (10 minute limit)...
     let warmCm2 = warmView2.editor.cm;
     plugin.acceptanceWarmUp(warmCm2, WARM_NOTE2);
     let [bin2, json2] = filesFor(key2), notWarmedActive29 = !await waitUntil(() => (0, import_fs3.existsSync)(bin2) && (0, import_fs3.existsSync)(json2), 3e3);
-    if (check(
+    check(
       "warm start writes chunk-0 cache on an idle switch, but not while a session is active",
       warmed29 && noSession29 && noPill29 && active29 && notWarmedActive29,
       `warmedIdle=${warmed29}, noSession=${noSession29}, noPill=${noPill29}, sessionActive=${active29}, blockedWhileActive=${notWarmedActive29}, key1=${key1}`
-    ), plugin.acceptanceDisposeSession(), removeKey(key1), removeKey(key2), hiddenMidRun()) {
+    ), plugin.acceptanceDisposeSession(), removeKey(key1), removeKey(key2), plugin.settings.firstPlayTipShown = !1;
+    let tipText = "click any word to jump", noticeWithTip = () => Array.from(document.querySelectorAll(".notice")).some((n) => (n.textContent ?? "").includes(tipText));
+    plugin.acceptanceStartSession(cm, NOTE);
+    let tipShown30 = await waitUntil(noticeWithTip, 3e3), flagFlipped30 = !!plugin.settings.firstPlayTipShown;
+    plugin.acceptanceDisposeSession(), await waitUntil(() => !noticeWithTip(), 8e3), plugin.acceptanceStartSession(cm, NOTE), await sleep(600);
+    let tipAgain30 = noticeWithTip();
+    if (plugin.acceptanceDisposeSession(), check(
+      "first play ever shows the one-time tip notice and flips the flag; second play stays quiet",
+      tipShown30 && flagFlipped30 && !tipAgain30,
+      `tipShown=${tipShown30}, flagFlipped=${flagFlipped30}, tipOnSecondPlay=${tipAgain30}`
+    ), hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
     }
@@ -19891,7 +19901,7 @@ ARMED: waiting for the window to become visible (10 minute limit)...
     plugin.acceptanceRunning = !1, banner.hide(), session?.dispose(), plugin.acceptanceDisposeSession();
     try {
       let snap = JSON.parse(settingsSnapshot);
-      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, plugin.settings.seekHintsShown = snap.seekHintsShown, plugin.acceptanceRestorePositions(positionsSnapshot), await plugin.saveSettings();
+      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, plugin.settings.firstPlayTipShown = snap.firstPlayTipShown, plugin.settings.seekHintsShown = snap.seekHintsShown, plugin.acceptanceRestorePositions(positionsSnapshot), await plugin.saveSettings();
     } catch {
     }
   }
@@ -19904,7 +19914,8 @@ var CACHE_SIZE_CHOICES = [50, 200, 500, 1e3], DEFAULT_SETTINGS = {
   speed: 1,
   listeningMode: !0,
   cacheSizeMb: 200,
-  seekHintsShown: 0
+  seekHintsShown: 0,
+  firstPlayTipShown: !1
 };
 function mergeSettings(saved) {
   let s = saved ?? {};
@@ -19916,7 +19927,8 @@ function mergeSettings(saved) {
     cacheSizeMb: CACHE_SIZE_CHOICES.includes(s.cacheSizeMb) ? s.cacheSizeMb : DEFAULT_SETTINGS.cacheSizeMb,
     // A non-negative integer, else 0. Clamps a stray/negative payload so the gate
     // stays sane; old payloads without the field default to 0 (hint still teaches).
-    seekHintsShown: typeof s.seekHintsShown == "number" && Number.isFinite(s.seekHintsShown) && s.seekHintsShown >= 0 ? Math.floor(s.seekHintsShown) : DEFAULT_SETTINGS.seekHintsShown
+    seekHintsShown: typeof s.seekHintsShown == "number" && Number.isFinite(s.seekHintsShown) && s.seekHintsShown >= 0 ? Math.floor(s.seekHintsShown) : DEFAULT_SETTINGS.seekHintsShown,
+    firstPlayTipShown: typeof s.firstPlayTipShown == "boolean" ? s.firstPlayTipShown : DEFAULT_SETTINGS.firstPlayTipShown
   };
 }
 function voiceForProvider(settings, providerId, providerDefaultVoice) {
@@ -20101,7 +20113,7 @@ function formatRate(rate) {
 var PlayerPill = class {
   constructor(cb, opts = {}) {
     this.cb = cb;
-    this.renderIcon = opts.renderIcon, this.root = document.createElement("div"), this.root.className = "se-pill", this.root.setAttribute("role", "toolbar"), this.root.setAttribute("aria-label", "Reading controls"), this.root.addEventListener("mousedown", (e) => e.preventDefault()), this.root.addEventListener("pointerenter", () => this.restore()), this.buildControls(), this.setControlIcon(this.playBtn, "play"), this.setControlIcon(this.earBtn, "ear"), this.setControlIcon(this.stopBtn, "x"), this.setSpeed(1), this.setVoiceLabel(""), this.setRemaining(""), this.setEdited(!1), this.setListening(!0);
+    this.renderIcon = opts.renderIcon, this.root = document.createElement("div"), this.root.className = "se-pill", this.root.setAttribute("role", "toolbar"), this.root.setAttribute("aria-label", "Reading controls"), this.root.addEventListener("mousedown", (e) => e.preventDefault()), this.root.addEventListener("pointerenter", () => this.restore()), this.buildControls(), this.setControlIcon(this.playBtn, "play"), this.setControlIcon(this.earIcon, "ear"), this.setControlIcon(this.stopBtn, "x"), this.setSpeed(1), this.setVoiceLabel(""), this.setRemaining(""), this.setEdited(!1), this.setListening(!0);
   }
   cb;
   root;
@@ -20109,6 +20121,7 @@ var PlayerPill = class {
   speedBtn;
   voiceBtn;
   earBtn;
+  earIcon;
   stopBtn;
   remainingEl;
   editedEl;
@@ -20193,7 +20206,9 @@ var PlayerPill = class {
   }
   // ─── Internals ───────────────────────────────────────────────────────────────
   buildControls() {
-    this.playBtn = this.makeControl("se-pill-play", "Play or pause"), this.playBtn.addEventListener("click", () => this.cb.onPlayPause()), this.speedBtn = this.makeControl("se-pill-speed", "Reading speed"), this.speedBtn.addEventListener("click", (e) => this.cb.onSpeed(e)), this.voiceBtn = this.makeControl("se-pill-voice", "Change voice"), this.voiceBtn.addEventListener("click", (e) => this.cb.onVoice(e)), this.remainingEl = this.makeSpan("se-pill-remaining"), this.editedEl = this.makeSpan("se-pill-edited"), this.editedEl.textContent = "edited", this.editedEl.setAttribute("title", EDITED_TITLE), this.earBtn = this.makeControl("se-pill-ear", "Listening mode"), this.earBtn.addEventListener("click", () => this.cb.onListening()), this.stopBtn = this.makeControl("se-pill-stop", "Stop reading"), this.stopBtn.addEventListener("click", () => this.cb.onStop());
+    this.playBtn = this.makeControl("se-pill-play", "Play or pause"), this.playBtn.addEventListener("click", () => this.cb.onPlayPause()), this.speedBtn = this.makeControl("se-pill-speed", "Reading speed"), this.speedBtn.addEventListener("click", (e) => this.cb.onSpeed(e)), this.voiceBtn = this.makeControl("se-pill-voice", "Change voice"), this.voiceBtn.addEventListener("click", (e) => this.cb.onVoice(e)), this.remainingEl = this.makeSpan("se-pill-remaining"), this.editedEl = this.makeSpan("se-pill-edited"), this.editedEl.textContent = "edited", this.editedEl.setAttribute("title", EDITED_TITLE), this.earBtn = this.makeControl("se-pill-ear", "Listening mode"), this.earIcon = this.earBtn.appendChild(document.createElement("span")), this.earIcon.className = "se-pill-ear-icon";
+    let earLabel = this.earBtn.appendChild(document.createElement("span"));
+    earLabel.className = "se-pill-ear-label", earLabel.textContent = "listening", this.earBtn.addEventListener("click", () => this.cb.onListening()), this.stopBtn = this.makeControl("se-pill-stop", "Stop reading"), this.stopBtn.addEventListener("click", () => this.cb.onStop());
   }
   makeSpan(cls) {
     let s = document.createElement("span");
@@ -20624,7 +20639,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
       let model = parseDocument(cm.state.doc.toString(), uri, 1);
       primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
     }
-    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian3.Notice("Resumed where you left off");
+    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian3.Notice("Resumed where you left off"), this.settings.firstPlayTipShown || (this.settings.firstPlayTipShown = !0, this.saveSettings(), new import_obsidian3.Notice("Tip: click any word to jump the reading there."));
   }
   stopSession() {
     this.session && (this.session.stop(), this.positionThrottle.flush(), this.updateRibbon("idle"));

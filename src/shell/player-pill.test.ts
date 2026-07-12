@@ -346,3 +346,17 @@ describe("PlayerPill DOM", () => {
     expect(container.querySelector(".se-pill")).toBeNull();
   });
 });
+describe("ear label (spec 0011)", () => {
+  it("renders the listening word inside the ear control and tracks the mode", () => {
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(document.body);
+    const label = document.querySelector(".se-pill-ear .se-pill-ear-label");
+    expect(label?.textContent).toBe("listening");
+    pill.setListening(true);
+    expect(document.querySelector(".se-pill-ear")?.classList.contains("se-pill-ear-active")).toBe(true);
+    pill.setListening(false);
+    expect(document.querySelector(".se-pill-ear")?.classList.contains("se-pill-ear-off")).toBe(true);
+    pill.destroy();
+  });
+});
+
