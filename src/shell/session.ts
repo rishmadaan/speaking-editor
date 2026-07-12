@@ -1,18 +1,20 @@
 // One reading session: owns the parsed model, chunks, synthesis, the vendored
-// playback Engine, the rAF loop, and the audio elements. It seeds the sync field
-// with word entries, drives the current-word decoration frame-by-frame, and tears
-// everything down cleanly. The frame-synced property lives here: the rAF loop calls
-// engine.tick() every frame; tick detects the boundary and calls onPosition, which
-// dispatches the decoration in that same frame.
+// playback Engine, the rAF loop, and the audio elements. It seeds a highlight
+// SURFACE with word entries, drives the current-word paint frame-by-frame through
+// that surface, and tears everything down cleanly. The frame-synced property lives
+// here: the rAF loop calls engine.tick() every frame; tick detects the boundary
+// and calls onPosition, which repaints in that same frame. The surface is
+// pluggable: live preview paints through CmSurface (the CM6 sync field), reading
+// mode through RangeSurface (the CSS Custom Highlight API); the session never
+// learns which mode it is in.
 import { EditorView } from "@codemirror/view";
-import { StateEffect } from "@codemirror/state";
 import { parseDocument, buildChunks, DocumentModel, Chunk } from "../engine/core";
 import { SynthesisService } from "../engine/synthesis/synthesis-service";
 import { EdgeProvider } from "../engine/synthesis/edge";
 import { TtsProvider, ChunkAudio } from "../engine/synthesis/provider";
 import { Engine, EngineCallbacks, AudioLike } from "../playback/engine";
 import { buildWordEntries, WordEntry } from "./word-runs";
-import { setWords, setPosition, clearAll, syncField } from "./sync-field";
+import { HighlightSurface, CmSurface } from "./highlight-surface";
 
 export type SessionState = "idle" | "playing" | "paused" | "ended" | "error";
 
@@ -26,7 +28,13 @@ export interface CacheLike {
 export interface ReadingSessionOptions {
   docText: string;
   uri: string;
-  view: EditorView;
+  // The editor view. Required when no surface is supplied (the session builds the
+  // default CmSurface from it); optional when an explicit surface is given (e.g.
+  // a RangeSurface for reading mode, or a fake surface in a node test).
+  view?: EditorView;
+  // The highlight surface. Defaults to a CmSurface over `view` (live preview) when
+  // omitted, so the existing construction path is unchanged.
+  surface?: HighlightSurface;
   onState: (state: SessionState, message?: string) => void;
   // Synthesis provider instance; defaults to Edge (our default) when omitted.
   provider?: TtsProvider;
@@ -53,12 +61,16 @@ export class ReadingSession {
   private entries: WordEntry[];
   private synthesis: SynthesisService;
   private engine: Engine;
-  private view: EditorView;
+  private surface: HighlightSurface;
   private onStateCb: (state: SessionState, message?: string) => void;
   private onPositionSaved?: (wordIndex: number) => void;
   // The last sentence we reported a position for, so we notify the shell only on
   // a genuine sentence change, not on every word advance.
   private lastReportedSentence = -1;
+  // The last word/sentence the surface was told to paint, for observability (the
+  // reading-mode acceptance checks read these; there is no sync field to inspect).
+  private _currentWord = -1;
+  private _currentSentence = -1;
 
   private rafId: number | null = null;
   private _state: SessionState = "idle";
@@ -69,9 +81,16 @@ export class ReadingSession {
   private createdAudios: AudioLike[] = [];
 
   constructor(opts: ReadingSessionOptions) {
-    this.view = opts.view;
     this.onStateCb = opts.onState;
     this.onPositionSaved = opts.onPositionSaved;
+    // Default the surface to the CM6 live-preview path; require a view for that.
+    if (opts.surface) {
+      this.surface = opts.surface;
+    } else if (opts.view) {
+      this.surface = new CmSurface(opts.view);
+    } else {
+      throw new Error("ReadingSession needs a surface or a view to build one");
+    }
     this.model = parseDocument(opts.docText, opts.uri, 1);
     this.chunks = buildChunks(this.model);
     this.entries = buildWordEntries(this.model, opts.docText);
@@ -101,8 +120,8 @@ export class ReadingSession {
     this.engine = new Engine(this.model, this.chunks, cb);
     if (opts.speed != null) this.engine.setSpeed(opts.speed);
 
-    // seed the field so decorations can paint the moment a position arrives
-    this.dispatch([setWords.of(this.entries)]);
+    // seed the surface so a position can paint the moment it arrives
+    this.surface.seed(this.entries);
 
     // A reconfigure (provider/voice change) primes the new session PAUSED at the
     // word the listener was on, so a later play resumes there instead of blasting
@@ -152,6 +171,15 @@ export class ReadingSession {
     this.startLoop();
   }
 
+  // Reading-mode click-to-seek: hand a viewport point to the surface, which maps
+  // it to the nearest aligned word, and seek there. A no-op on surfaces that do
+  // not hit-test (live preview does its own click handling on the editor).
+  seekReading(x: number, y: number) {
+    if (this.disposed) return;
+    const w = this.surface.hitTest?.(x, y);
+    if (w != null && w >= 0) this.seekToWord(w);
+  }
+
   // Apply a new playback rate to the live audio without a rebuild. The caller
   // (main.ts) also persists the rate so future sessions start at it.
   setSpeed(rate: number) {
@@ -170,11 +198,34 @@ export class ReadingSession {
     return this._state;
   }
 
+  // The word/sentence currently painted. In reading mode there is no sync field
+  // to read, so the acceptance checks and the reconfigure path read these.
+  get currentWord(): number {
+    return this._currentWord;
+  }
+  get currentSentence(): number {
+    return this._currentSentence;
+  }
+
+  // Which surface is painting: "cm" (live preview), "range" (reading mode aligned),
+  // or "none" (reading mode where alignment failed: playback with no highlight,
+  // the all-or-nothing rule). Read by the acceptance checks.
+  get highlightSurface(): "cm" | "range" | "none" {
+    return this.surface.kind;
+  }
+
   // Acceptance-only observability: the playbackRate every audio element the
   // engine created is currently set to (check 8 reads this to confirm a live
   // speed change reached the audio without a session restart).
   get audioPlaybackRates(): number[] {
     return this.createdAudios.map((a) => a.playbackRate);
+  }
+
+  // Acceptance-only observability: the viewport rect of a reading-mode word's
+  // painted range, so check 21 can click a rendered word. Null off the range
+  // surface or when the word has no range.
+  acceptanceWordRect(word: number): DOMRect | null {
+    return this.surface.acceptanceWordRect?.(word) ?? null;
   }
 
   // ─── Engine callbacks ────────────────────────────────────────────────────────
@@ -196,6 +247,8 @@ export class ReadingSession {
   }
 
   private onPosition(word: number, sentence: number) {
+    this._currentWord = word;
+    this._currentSentence = sentence;
     // Sentence-granularity position report: only when the reading crosses into a
     // new sentence. At that instant `word` is that sentence's first word, so the
     // shell persists a clean sentence-start position for resume.
@@ -203,27 +256,7 @@ export class ReadingSession {
       this.lastReportedSentence = sentence;
       this.onPositionSaved?.(word);
     }
-    const effects: StateEffect<unknown>[] = [setPosition.of({ word, sentence })];
-    // gentle follow: if the sentence's first run is outside the visible viewport,
-    // scroll it back into view. Cheap guard: only measure the one anchor position.
-    // Read LIVE entries from the field, not the construction-time copy: edits
-    // during playback remap field entries, and a stale anchor would scroll to
-    // pre-edit offsets.
-    const live = this.view.state.field(syncField, false)?.words ?? this.entries;
-    const first = live.find((e) => e.sentence === sentence && e.runs.length > 0 && !e.dirty);
-    if (first) {
-      const pos = first.runs[0].from;
-      try {
-        const coords = this.view.coordsAtPos(pos);
-        const rect = this.view.scrollDOM.getBoundingClientRect();
-        if (!coords || coords.top < rect.top || coords.bottom > rect.bottom) {
-          effects.push(EditorView.scrollIntoView(pos, { y: "nearest" }));
-        }
-      } catch {
-        /* measurement can fail if the view is mid-teardown; skip the follow */
-      }
-    }
-    this.dispatch(effects);
+    this.surface.onPosition(word, sentence);
   }
 
   private handleEngineState(s: "playing" | "paused" | "ended") {
@@ -257,14 +290,6 @@ export class ReadingSession {
     this.stopLoop();
     this.engine.stop(); // pauses every audio element and revokes its blob URL
     this.synthesis.abortAll();
-    this.dispatch([clearAll.of(null)]);
-  }
-
-  private dispatch(effects: StateEffect<unknown>[]) {
-    try {
-      this.view.dispatch({ effects });
-    } catch {
-      /* the view may be detached during teardown; a lost dispatch is harmless */
-    }
+    this.surface.clear();
   }
 }

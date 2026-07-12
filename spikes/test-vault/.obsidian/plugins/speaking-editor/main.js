@@ -18060,9 +18060,6 @@ var sentenceDeco = import_view.Decoration.mark({ class: "se-sentence" }), wordDe
   })
 });
 
-// src/shell/session.ts
-var import_view2 = require("@codemirror/view");
-
 // src/engine/core/document-model.ts
 var ABBREVIATION_PATTERN = /(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|i\.e|e\.g|a\.m|p\.m)\./gi;
 function splitIntoSentenceSpans(text) {
@@ -18731,6 +18728,41 @@ function buildWordEntries(model, docText) {
   });
 }
 
+// src/shell/highlight-surface.ts
+var import_view2 = require("@codemirror/view");
+var CmSurface = class {
+  constructor(view) {
+    this.view = view;
+  }
+  view;
+  kind = "cm";
+  entries = [];
+  seed(entries) {
+    this.entries = entries, this.dispatch([setWords.of(entries)]);
+  }
+  onPosition(word, sentence) {
+    let effects = [setPosition.of({ word, sentence })], first = (this.view.state.field(syncField, !1)?.words ?? this.entries).find((e) => e.sentence === sentence && e.runs.length > 0 && !e.dirty);
+    if (first) {
+      let pos = first.runs[0].from;
+      try {
+        let coords = this.view.coordsAtPos(pos), rect = this.view.scrollDOM.getBoundingClientRect();
+        (!coords || coords.top < rect.top || coords.bottom > rect.bottom) && effects.push(import_view2.EditorView.scrollIntoView(pos, { y: "nearest" }));
+      } catch {
+      }
+    }
+    this.dispatch(effects);
+  }
+  clear() {
+    this.dispatch([clearAll.of(null)]);
+  }
+  dispatch(effects) {
+    try {
+      this.view.dispatch({ effects });
+    } catch {
+    }
+  }
+};
+
 // src/shell/session.ts
 var ReadingSession = class {
   model;
@@ -18738,12 +18770,16 @@ var ReadingSession = class {
   entries;
   synthesis;
   engine;
-  view;
+  surface;
   onStateCb;
   onPositionSaved;
   // The last sentence we reported a position for, so we notify the shell only on
   // a genuine sentence change, not on every word advance.
   lastReportedSentence = -1;
+  // The last word/sentence the surface was told to paint, for observability (the
+  // reading-mode acceptance checks read these; there is no sync field to inspect).
+  _currentWord = -1;
+  _currentSentence = -1;
   rafId = null;
   _state = "idle";
   active = !1;
@@ -18753,7 +18789,13 @@ var ReadingSession = class {
   // acceptance harness can observe the live playbackRate (check 8).
   createdAudios = [];
   constructor(opts) {
-    this.view = opts.view, this.onStateCb = opts.onState, this.onPositionSaved = opts.onPositionSaved, this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = buildChunks(this.model), this.entries = buildWordEntries(this.model, opts.docText);
+    if (this.onStateCb = opts.onState, this.onPositionSaved = opts.onPositionSaved, opts.surface)
+      this.surface = opts.surface;
+    else if (opts.view)
+      this.surface = new CmSurface(opts.view);
+    else
+      throw new Error("ReadingSession needs a surface or a view to build one");
+    this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = buildChunks(this.model), this.entries = buildWordEntries(this.model, opts.docText);
     let provider = opts.provider ?? new EdgeProvider(), voice = opts.voice ?? provider.defaultVoice;
     this.synthesis = new SynthesisService(provider, voice, opts.cache);
     let cb = {
@@ -18771,7 +18813,7 @@ var ReadingSession = class {
       ),
       revokeUrl: (url) => URL.revokeObjectURL(url)
     };
-    this.engine = new Engine(this.model, this.chunks, cb), opts.speed != null && this.engine.setSpeed(opts.speed), this.dispatch([setWords.of(this.entries)]), opts.primeAtWord != null && this.engine.primeAt(opts.primeAtWord);
+    this.engine = new Engine(this.model, this.chunks, cb), opts.speed != null && this.engine.setSpeed(opts.speed), this.surface.seed(this.entries), opts.primeAtWord != null && this.engine.primeAt(opts.primeAtWord);
   }
   // ─── Public API ────────────────────────────────────────────────────────────
   playPause() {
@@ -18797,6 +18839,14 @@ var ReadingSession = class {
   seekToWord(wordIndex) {
     this.disposed || (this.active = !0, this.engine.jumpToWord(wordIndex), this.startLoop());
   }
+  // Reading-mode click-to-seek: hand a viewport point to the surface, which maps
+  // it to the nearest aligned word, and seek there. A no-op on surfaces that do
+  // not hit-test (live preview does its own click handling on the editor).
+  seekReading(x, y) {
+    if (this.disposed) return;
+    let w = this.surface.hitTest?.(x, y);
+    w != null && w >= 0 && this.seekToWord(w);
+  }
   // Apply a new playback rate to the live audio without a rebuild. The caller
   // (main.ts) also persists the rate so future sessions start at it.
   setSpeed(rate) {
@@ -18808,11 +18858,31 @@ var ReadingSession = class {
   get state() {
     return this._state;
   }
+  // The word/sentence currently painted. In reading mode there is no sync field
+  // to read, so the acceptance checks and the reconfigure path read these.
+  get currentWord() {
+    return this._currentWord;
+  }
+  get currentSentence() {
+    return this._currentSentence;
+  }
+  // Which surface is painting: "cm" (live preview), "range" (reading mode aligned),
+  // or "none" (reading mode where alignment failed: playback with no highlight,
+  // the all-or-nothing rule). Read by the acceptance checks.
+  get highlightSurface() {
+    return this.surface.kind;
+  }
   // Acceptance-only observability: the playbackRate every audio element the
   // engine created is currently set to (check 8 reads this to confirm a live
   // speed change reached the audio without a session restart).
   get audioPlaybackRates() {
     return this.createdAudios.map((a) => a.playbackRate);
+  }
+  // Acceptance-only observability: the viewport rect of a reading-mode word's
+  // painted range, so check 21 can click a rendered word. Null off the range
+  // surface or when the word has no range.
+  acceptanceWordRect(word) {
+    return this.surface.acceptanceWordRect?.(word) ?? null;
   }
   // ─── Engine callbacks ────────────────────────────────────────────────────────
   requestChunk(i, priority) {
@@ -18823,17 +18893,7 @@ var ReadingSession = class {
     });
   }
   onPosition(word, sentence) {
-    sentence !== this.lastReportedSentence && (this.lastReportedSentence = sentence, this.onPositionSaved?.(word));
-    let effects = [setPosition.of({ word, sentence })], first = (this.view.state.field(syncField, !1)?.words ?? this.entries).find((e) => e.sentence === sentence && e.runs.length > 0 && !e.dirty);
-    if (first) {
-      let pos = first.runs[0].from;
-      try {
-        let coords = this.view.coordsAtPos(pos), rect = this.view.scrollDOM.getBoundingClientRect();
-        (!coords || coords.top < rect.top || coords.bottom > rect.bottom) && effects.push(import_view2.EditorView.scrollIntoView(pos, { y: "nearest" }));
-      } catch {
-      }
-    }
-    this.dispatch(effects);
+    this._currentWord = word, this._currentSentence = sentence, sentence !== this.lastReportedSentence && (this.lastReportedSentence = sentence, this.onPositionSaved?.(word)), this.surface.onPosition(word, sentence);
   }
   handleEngineState(s) {
     this._state = s, s === "playing" ? this.startLoop() : this.stopLoop(), s === "ended" && (this.active = !1), this.onStateCb(s);
@@ -18849,11 +18909,139 @@ var ReadingSession = class {
     this.rafId != null && (cancelAnimationFrame(this.rafId), this.rafId = null);
   }
   teardown() {
-    this.active = !1, this.stopLoop(), this.engine.stop(), this.synthesis.abortAll(), this.dispatch([clearAll.of(null)]);
+    this.active = !1, this.stopLoop(), this.engine.stop(), this.synthesis.abortAll(), this.surface.clear();
   }
-  dispatch(effects) {
+};
+
+// src/shell/text-align.ts
+var WORD_CHAR = /[A-Za-z0-9]/, isWordChar = (c) => c != null && WORD_CHAR.test(c);
+function alignWords(words, nodes, lookaheadCap = 160) {
+  let nodeOf = [], offOf = [], flat = "";
+  for (let n = 0; n < nodes.length; n++) {
+    let t = nodes[n].text;
+    for (let i = 0; i < t.length; i++)
+      nodeOf.push(n), offOf.push(i);
+    flat += t;
+  }
+  let leftOk = (j) => j === 0 || !isWordChar(flat[j - 1]) || nodeOf[j] !== nodeOf[j - 1], rightOk = (e) => e >= flat.length || !isWordChar(flat[e]) || nodeOf[e] !== nodeOf[e - 1], ranges = [], pos = 0;
+  for (let w = 0; w < words.length; w++) {
+    let word = words[w];
+    if (word.length === 0) return { ok: !1, reason: `empty model word at index ${w}` };
+    let maxStart = Math.min(flat.length - word.length, pos + lookaheadCap), found = -1;
+    for (let j = pos; j <= maxStart; j++)
+      if (flat[j] === word[0] && leftOk(j) && flat.startsWith(word, j) && rightOk(j + word.length)) {
+        found = j;
+        break;
+      }
+    if (found < 0)
+      return { ok: !1, reason: `model word ${w} "${word}" not found within lookahead from ${pos}` };
+    let lastChar = found + word.length - 1;
+    ranges.push({
+      startNode: nodeOf[found],
+      startOffset: offOf[found],
+      endNode: nodeOf[lastChar],
+      endOffset: offOf[lastChar] + 1
+    }), pos = found + word.length;
+  }
+  return { ok: !0, ranges };
+}
+
+// src/shell/range-surface.ts
+var WORD_HIGHLIGHT = "se-word-r", SENTENCE_HIGHLIGHT = "se-sentence-r";
+function collectTextNodes(root) {
+  let walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT), out = [], n;
+  for (; n = walker.nextNode(); ) out.push(n);
+  return out;
+}
+var RangeSurface = class {
+  constructor(container) {
+    this.container = container;
+  }
+  container;
+  _kind = "none";
+  entries = [];
+  // model word index -> its DOM Range (only for aligned notes)
+  rangeByWord = /* @__PURE__ */ new Map();
+  // the same ranges in document order, for click hit-testing
+  ordered = [];
+  wordHi = new Highlight();
+  sentenceHi = new Highlight();
+  registered = !1;
+  get kind() {
+    return this._kind;
+  }
+  seed(entries) {
+    this.entries = entries;
+    let textNodes = collectTextNodes(this.container), words = entries.map((e) => e.text), result = alignWords(
+      words,
+      textNodes.map((t) => ({ text: t.data }))
+    );
+    if (!result.ok) {
+      this._kind = "none";
+      return;
+    }
     try {
-      this.view.dispatch({ effects });
+      result.ranges.forEach((wr, i) => {
+        let range = this.container.ownerDocument.createRange();
+        range.setStart(textNodes[wr.startNode], wr.startOffset), range.setEnd(textNodes[wr.endNode], wr.endOffset);
+        let wordIndex = entries[i].index;
+        this.rangeByWord.set(wordIndex, range), this.ordered.push({ word: wordIndex, range });
+      });
+    } catch {
+      this.rangeByWord.clear(), this.ordered = [], this._kind = "none";
+      return;
+    }
+    CSS.highlights.set(WORD_HIGHLIGHT, this.wordHi), CSS.highlights.set(SENTENCE_HIGHLIGHT, this.sentenceHi), this.registered = !0, this._kind = "range";
+  }
+  onPosition(word, sentence) {
+    if (this._kind !== "range") return;
+    this.wordHi.clear(), this.sentenceHi.clear();
+    for (let e of this.entries) {
+      if (e.sentence !== sentence) continue;
+      let r = this.rangeByWord.get(e.index);
+      r && this.sentenceHi.add(r);
+    }
+    let wr = this.rangeByWord.get(word);
+    wr && this.wordHi.add(wr), this.follow(sentence);
+  }
+  clear() {
+    this.wordHi.clear(), this.sentenceHi.clear(), this.registered && (CSS.highlights.delete(WORD_HIGHLIGHT), CSS.highlights.delete(SENTENCE_HIGHLIGHT), this.registered = !1), this.rangeByWord.clear(), this.ordered = [], this._kind = "none";
+  }
+  // Map a viewport point to the nearest aligned word: the word whose range
+  // contains the caret, else the first aligned word that begins after it (the
+  // same nearest-following rule live preview uses).
+  hitTest(x, y) {
+    if (this._kind !== "range") return null;
+    let caret = this.container.ownerDocument.caretRangeFromPoint(x, y);
+    if (!caret) return null;
+    let node = caret.startContainer, offset = caret.startOffset;
+    for (let { word, range } of this.ordered)
+      try {
+        if (range.comparePoint(node, offset) === 0) return word;
+      } catch {
+      }
+    for (let { word, range } of this.ordered)
+      try {
+        if (range.comparePoint(node, offset) === -1) return word;
+      } catch {
+      }
+    return null;
+  }
+  acceptanceWordRect(word) {
+    let r = this.rangeByWord.get(word);
+    return r ? r.getBoundingClientRect() : null;
+  }
+  // Gentle follow: scroll the sentence's first aligned range into view with block
+  // "nearest", which only moves the viewport when the anchor has left the visible
+  // band, matching the live-preview leave-the-band policy.
+  follow(sentence) {
+    let first = this.entries.find((e) => e.sentence === sentence && this.rangeByWord.has(e.index));
+    if (!first) return;
+    let range = this.rangeByWord.get(first.index);
+    if (!range) return;
+    let node = range.startContainer, el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    try {
+      el?.scrollIntoView({ block: "nearest", inline: "nearest" });
     } catch {
     }
   }
@@ -19427,11 +19615,81 @@ ARMED: waiting for the window to become visible (10 minute limit)...
       () => plugin.acceptanceSession()?.state === "playing" && (field().word === 0 || field().word === 1),
       8e3
     );
-    if (check(
+    check(
       "stop mid-note resumes at the stopped sentence; read-from-top restarts at word 0",
       started19 && advanced19 && resumedPlaying19 && resumedAtSentence && fromTop19,
       `stopped at word ${stoppedWord} (sentence ${stoppedSentence}); resumed at word ${resumedWord} (sentence ${resumedSentence}, start ${sentenceStartWord}); from-top word=${field().word}`
-    ), plugin.acceptanceDisposeSession(), hiddenMidRun()) {
+    ), plugin.acceptanceDisposeSession();
+    let readingRoot = () => {
+      let root = mdView.previewMode?.containerEl;
+      return root ? root.querySelector(".markdown-preview-sizer") ?? root.querySelector(".markdown-preview-view") ?? root : null;
+    }, wordHi = () => CSS.highlights.get("se-word-r"), sentHi = () => CSS.highlights.get("se-sentence-r");
+    await mdView.setState(
+      { ...mdView.getState(), mode: "preview", source: !1 },
+      { history: !1 }
+    );
+    let rendered20 = await waitUntil(
+      () => (readingRoot()?.textContent ?? "").includes("closing paragraph"),
+      6e3
+    );
+    plugin.acceptanceStartSession(cm, NOTE);
+    let painted20 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && plugin.acceptanceSession()?.highlightSurface === "range" && (wordHi()?.size ?? 0) > 0,
+      6e3
+    );
+    check(
+      "reading mode: play reaches playing, alignment succeeds, and CSS.highlights paints the current word within 6s",
+      rendered20 && painted20,
+      `rendered=${rendered20}, state=${plugin.acceptanceSession()?.state}, surface=${plugin.acceptanceSession()?.highlightSurface}, wordRanges=${wordHi()?.size ?? 0}, sentenceRanges=${sentHi()?.size ?? 0}`
+    ), plugin.settings.listeningMode = !0;
+    let session21 = plugin.acceptanceSession(), target21 = -1, rect21 = null, frozen21 = -1, dispatched21 = !1;
+    if (session21) {
+      session21.playPause(), await waitUntil(() => session21.state === "paused", 1500), frozen21 = session21.currentWord;
+      for (let w = frozen21 + 3; w < frozen21 + 60; w++) {
+        let r = session21.acceptanceWordRect(w);
+        if (r && r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight) {
+          target21 = w, rect21 = r;
+          break;
+        }
+      }
+      let container21 = plugin.acceptanceReadingContainer();
+      rect21 && container21 && (container21.dispatchEvent(
+        new MouseEvent("mousedown", {
+          clientX: (rect21.left + rect21.right) / 2,
+          clientY: (rect21.top + rect21.bottom) / 2,
+          bubbles: !0
+        })
+      ), dispatched21 = !0);
+    }
+    let seeked21 = await waitUntil(
+      () => !!session21 && (session21.currentWord === target21 || session21.currentWord === target21 + 1),
+      1500
+    );
+    check(
+      "reading mode: a listening-mode click on a rendered word seeks playback there within 1s",
+      dispatched21 && target21 >= 0 && seeked21,
+      `frozen=${frozen21}, target=${target21}, dispatched=${dispatched21}, current=${session21?.currentWord}`
+    ), plugin.acceptanceDisposeSession();
+    let injectRoot = readingRoot(), injected22 = !1;
+    if (injectRoot) {
+      let junk = injectRoot.ownerDocument.createElement("span");
+      junk.textContent = "Zq9 ".repeat(120), injectRoot.insertBefore(junk, injectRoot.firstChild), injected22 = !0;
+    }
+    plugin.acceptanceStartSession(cm, NOTE);
+    let playing22 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && (plugin.acceptanceSession()?.currentWord ?? -1) >= 0,
+      8e3
+    ), surfaceNone22 = plugin.acceptanceSession()?.highlightSurface === "none", noRanges22 = !CSS.highlights.has("se-word-r") && !CSS.highlights.has("se-sentence-r");
+    check(
+      "reading mode all-or-nothing: an unalignable note still plays but registers no highlight ranges (surface none)",
+      injected22 && playing22 && surfaceNone22 && noRanges22,
+      `injected=${injected22}, state=${plugin.acceptanceSession()?.state}, word=${plugin.acceptanceSession()?.currentWord}, surface=${plugin.acceptanceSession()?.highlightSurface}, wordReg=${CSS.highlights.has("se-word-r")}, sentReg=${CSS.highlights.has("se-sentence-r")}`
+    ), plugin.acceptanceDisposeSession();
+    try {
+      injectRoot && injected22 && injectRoot.firstChild && injectRoot.removeChild(injectRoot.firstChild);
+    } catch {
+    }
+    if (hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
     }
@@ -19849,6 +20107,17 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   session = null;
   sessionView = null;
   sessionUri = "untitled";
+  // The active session's markdown view and mode, so the mode-flip watcher can
+  // tell when the user toggled edit/preview mid-session (reading mode only mounts
+  // over the rendered surface; a flip ends the session).
+  sessionMdView = null;
+  sessionMode = "live";
+  // The rendered reading container the reading session aligned against (null in
+  // live preview): the click surface and the harness's reading container.
+  sessionReadingContainer = null;
+  // Where the pill mounts: the reading container's positioned parent in reading
+  // mode, the editor's in live preview.
+  pillAnchor = null;
   ribbonEl = null;
   boundDoms = /* @__PURE__ */ new WeakSet();
   // Exactly one pill ever exists, tied to the active session's UI.
@@ -19883,7 +20152,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
       callback: () => {
         this.toggleListeningMode();
       }
-    }), this.addSettingTab(new SpeakingEditorSettingTab(this.app, this)), this.addCommand({
+    }), this.registerEvent(this.app.workspace.on("layout-change", () => this.checkModeFlip())), this.addSettingTab(new SpeakingEditorSettingTab(this.app, this)), this.addCommand({
       id: "run-acceptance-checks",
       name: "Run acceptance checks",
       callback: () => {
@@ -19949,7 +20218,9 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     cm && this.restartFromTop(cm, view.file?.path ?? "untitled");
   }
   restartFromTop(cm, uri) {
-    this.disposeSession(), this.positions = clearPosition(this.positions, uri), this.positionThrottle.flush(), this.sessionView = cm, this.sessionUri = uri, this.session = this.buildSession(cm, uri), this.bindClickToSeek(cm), this.ensurePill(), this.session.playPause();
+    this.disposeSession(), this.positions = clearPosition(this.positions, uri), this.positionThrottle.flush();
+    let ctx = this.resolveSurfaceContext();
+    this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container, this.session = this.buildSession(cm, uri), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause();
   }
   async toggleListeningMode() {
     await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian2.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
@@ -19979,16 +20250,17 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   // primed PAUSED at that word. Never auto-plays.
   reconfigureActiveSession() {
     if (!this.session || !this.sessionView) return;
-    let cm = this.sessionView, word = cm.state.field(syncField, !1)?.word ?? -1;
+    let cm = this.sessionView, word = this.session.currentWord;
     this.session.dispose(), this.session = this.buildSession(cm, this.sessionUri, word >= 0 ? word : void 0);
   }
   // ─── Session wiring ──────────────────────────────────────────────────────────
   buildSession(cm, uri, primeAtWord) {
-    let provider = buildProvider(this.settings.providerId, this.keyStore), voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    let provider = buildProvider(this.settings.providerId, this.keyStore), voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice), surface = this.sessionMode === "reading" && this.sessionReadingContainer ? new RangeSurface(this.sessionReadingContainer) : new CmSurface(cm);
     return new ReadingSession({
       docText: cm.state.doc.toString(),
       uri,
       view: cm,
+      surface,
       provider,
       voice,
       speed: this.settings.speed,
@@ -19997,6 +20269,34 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
       onState: (s) => this.onSessionState(s),
       onPositionSaved: (w) => this.onSessionPosition(w)
     });
+  }
+  // The active markdown view's mode: "reading" for the rendered preview, "live"
+  // for source/live-preview editing.
+  modeOf(view) {
+    return view.getMode() === "preview" ? "reading" : "live";
+  }
+  // The rendered content element to align and bind clicks against, preferring the
+  // inner sizer so leading chrome (properties, inline title) is minimal.
+  readingContainerOf(view) {
+    let root = view.previewMode.containerEl;
+    return root.querySelector(".markdown-preview-sizer") ?? root.querySelector(".markdown-preview-view") ?? root;
+  }
+  // Resolve the surface context for a session about to start on the active view.
+  resolveSurfaceContext() {
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
+    return view && this.modeOf(view) === "reading" ? { view, mode: "reading", container: this.readingContainerOf(view) } : { view, mode: "live", container: null };
+  }
+  // Bind the right click-to-seek surface for the mode, and remember where the pill
+  // mounts. Both are derived once at session start.
+  bindSeekSurface(cm, mode, container) {
+    mode === "reading" && container ? this.bindReadingClickToSeek(container) : this.bindClickToSeek(cm);
+  }
+  setPillAnchor(cm, mode, container) {
+    this.pillAnchor = mode === "reading" && container ? container.offsetParent ?? container : cm.scrollDOM.offsetParent ?? cm.dom;
+  }
+  // Stop a running reading session when its view flips edit/preview mid-session.
+  checkModeFlip() {
+    !this.session || !this.sessionMdView || this.modeOf(this.sessionMdView) !== this.sessionMode && (this.disposeSession(), new import_obsidian2.Notice("Reading stopped: the view changed"));
   }
   playPause() {
     let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
@@ -20011,28 +20311,29 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     }
   }
   startSession(cm, uri) {
-    this.sessionView = cm, this.sessionUri = uri;
+    let ctx = this.resolveSurfaceContext();
+    this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container;
     let fresh = getFreshPosition(this.positions, uri, Date.now()), primeAtWord;
     if (fresh) {
       let model = parseDocument(cm.state.doc.toString(), uri, 1);
       primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
     }
-    this.session = this.buildSession(cm, uri, primeAtWord), this.bindClickToSeek(cm), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian2.Notice("Resumed where you left off");
+    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian2.Notice("Resumed where you left off");
   }
   stopSession() {
     this.session && (this.session.stop(), this.positionThrottle.flush(), this.updateRibbon("idle"));
   }
   disposeSession() {
-    this.destroyPill(), this.session?.dispose(), this.session = null, this.sessionView = null, this.updateRibbon("idle");
+    this.destroyPill(), this.session?.dispose(), this.session = null, this.sessionView = null, this.sessionMdView = null, this.sessionReadingContainer = null, this.pillAnchor = null, this.updateRibbon("idle");
   }
   onSessionState(state) {
     this.updateRibbon(state), state === "ended" && (this.positions = clearPosition(this.positions, this.sessionUri), this.positionThrottle.flush()), state === "playing" || state === "paused" ? (this.ensurePill(), this.pill?.setState(state)) : this.destroyPill();
   }
   // ─── Pill lifecycle ──────────────────────────────────────────────────────────
   ensurePill() {
-    if (this.pill || !this.session || !this.sessionView) return;
-    let anchor = this.sessionView.scrollDOM.offsetParent ?? this.sessionView.dom;
-    this.pill = new PlayerPill(
+    if (this.pill || !this.session) return;
+    let anchor = this.pillAnchor ?? this.sessionView?.dom;
+    anchor && (this.pill = new PlayerPill(
       {
         onPlayPause: () => this.session?.playPause(),
         onSpeed: (evt) => this.showSpeedMenu(evt),
@@ -20045,7 +20346,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
         onStop: () => this.stopSession()
       },
       { renderIcon: (el, icon) => (0, import_obsidian2.setIcon)(el, icon) }
-    ), this.pill.mount(anchor), this.pill.setState(this.session.state), this.pill.setSpeed(this.settings.speed), this.pill.setListening(this.settings.listeningMode), this.pill.setVoiceLabel(this.currentVoiceLabel());
+    ), this.pill.mount(anchor), this.pill.setState(this.session.state), this.pill.setSpeed(this.settings.speed), this.pill.setListening(this.settings.listeningMode), this.pill.setVoiceLabel(this.currentVoiceLabel()));
   }
   destroyPill() {
     this.pill?.destroy(), this.pill = null;
@@ -20138,11 +20439,26 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     this.boundDoms.has(dom) || (this.boundDoms.add(dom), this.registerDomEvent(dom, "mousedown", (evt) => this.onEditorMouseDown(view, evt)));
   }
   onEditorMouseDown(view, evt) {
-    if (!this.session || this.sessionView !== view || !this.settings.listeningMode) return;
+    if (!this.session || this.sessionView !== view || this.sessionMode !== "live" || !this.settings.listeningMode) return;
     let pos = view.posAtCoords({ x: evt.clientX, y: evt.clientY });
     if (pos == null) return;
     let words = view.state.field(syncField).words, w = words.find((e) => e.runs.some((r) => pos >= r.from && pos < r.to)) ?? words.find((e) => e.runs.length > 0 && e.runs[0].from >= pos);
     w && this.session.seekToWord(w.index);
+  }
+  // Reading-mode click-to-seek: bound to the rendered container (bubbling), gated
+  // on a live reading session and listening mode. The RangeSurface maps the point
+  // via caretRangeFromPoint to the nearest aligned word; a miss is a no-op (the
+  // click behaves normally). Bind once per container.
+  bindReadingClickToSeek(container) {
+    this.boundDoms.has(container) || (this.boundDoms.add(container), this.registerDomEvent(container, "mousedown", (evt) => this.onReadingMouseDown(container, evt)));
+  }
+  onReadingMouseDown(container, evt) {
+    !this.session || this.sessionMode !== "reading" || this.sessionReadingContainer === container && this.settings.listeningMode && this.session.seekReading(evt.clientX, evt.clientY);
+  }
+  // Acceptance-only: the rendered container the current reading session aligned
+  // against, so the harness can dispatch a real mousedown on it (check 21).
+  acceptanceReadingContainer() {
+    return this.sessionReadingContainer;
   }
 };
 /*! Bundled license information:

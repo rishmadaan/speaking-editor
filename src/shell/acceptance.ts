@@ -729,6 +729,131 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
     );
     plugin.acceptanceDisposeSession();
 
+    // ─── Reading-mode checks (spec 0007) ─────────────────────────────────────
+    // Flip the fixture leaf into Reading Mode (the rendered preview) and drive the
+    // same plugin session path. The surface becomes a RangeSurface painting through
+    // the CSS Custom Highlight API, all-or-nothing per note: aligned -> ranges,
+    // not aligned -> no highlight at all.
+    const readingRoot = (): HTMLElement | null => {
+      const root = (mdView as any).previewMode?.containerEl as HTMLElement | undefined;
+      if (!root) return null;
+      return (
+        (root.querySelector(".markdown-preview-sizer") as HTMLElement | null) ??
+        (root.querySelector(".markdown-preview-view") as HTMLElement | null) ??
+        root
+      );
+    };
+    const wordHi = () => CSS.highlights.get("se-word-r");
+    const sentHi = () => CSS.highlights.get("se-sentence-r");
+
+    await (mdView as any).setState(
+      { ...(mdView as any).getState(), mode: "preview", source: false },
+      { history: false }
+    );
+    const rendered20 = await waitUntil(
+      () => (readingRoot()?.textContent ?? "").includes("closing paragraph"),
+      6000
+    );
+
+    // 20. In reading mode on the dialect fixture, play reaches "playing", the
+    //     alignment succeeds (surface "range"), and CSS.highlights carries a word
+    //     range for the current word within 6s.
+    plugin.acceptanceStartSession(cm, NOTE);
+    const painted20 = await waitUntil(
+      () =>
+        plugin.acceptanceSession()?.state === "playing" &&
+        plugin.acceptanceSession()?.highlightSurface === "range" &&
+        (wordHi()?.size ?? 0) > 0,
+      6000
+    );
+    check(
+      "reading mode: play reaches playing, alignment succeeds, and CSS.highlights paints the current word within 6s",
+      rendered20 && painted20,
+      `rendered=${rendered20}, state=${plugin.acceptanceSession()?.state}, surface=${plugin.acceptanceSession()?.highlightSurface}, wordRanges=${wordHi()?.size ?? 0}, sentenceRanges=${sentHi()?.size ?? 0}`
+    );
+
+    // 21. A listening-mode click on a rendered word seeks playback there (same
+    //     contract as check 4), via caretRangeFromPoint -> nearest aligned word.
+    plugin.settings.listeningMode = true;
+    const session21 = plugin.acceptanceSession();
+    let target21 = -1;
+    let rect21: DOMRect | null = null;
+    let frozen21 = -1;
+    let dispatched21 = false;
+    if (session21) {
+      session21.playPause(); // pause so natural progression cannot confound the click
+      await waitUntil(() => session21.state === "paused", 1500);
+      frozen21 = session21.currentWord;
+      // pick an aligned word ahead of the frozen one whose rendered rect is inside
+      // the viewport (so caretRangeFromPoint lands on it)
+      for (let w = frozen21 + 3; w < frozen21 + 60; w++) {
+        const r = session21.acceptanceWordRect(w);
+        if (r && r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight) {
+          target21 = w;
+          rect21 = r;
+          break;
+        }
+      }
+      const container21 = plugin.acceptanceReadingContainer();
+      if (rect21 && container21) {
+        container21.dispatchEvent(
+          new MouseEvent("mousedown", {
+            clientX: (rect21.left + rect21.right) / 2,
+            clientY: (rect21.top + rect21.bottom) / 2,
+            bubbles: true,
+          })
+        );
+        dispatched21 = true;
+      }
+    }
+    const seeked21 = await waitUntil(
+      () =>
+        !!session21 && (session21.currentWord === target21 || session21.currentWord === target21 + 1),
+      1500
+    );
+    check(
+      "reading mode: a listening-mode click on a rendered word seeks playback there within 1s",
+      dispatched21 && target21 >= 0 && seeked21,
+      `frozen=${frozen21}, target=${target21}, dispatched=${dispatched21}, current=${session21?.currentWord}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 22. A note engineered to defeat alignment (a rendered-only stretch longer
+    //     than the lookahead cap injected at the top of the content) still PLAYS
+    //     but registers NO highlight ranges and reports surface "none": the
+    //     all-or-nothing rule, asserted.
+    const injectRoot = readingRoot();
+    let injected22 = false;
+    if (injectRoot) {
+      const junk = injectRoot.ownerDocument.createElement("span");
+      junk.textContent = "Zq9 ".repeat(120); // ~480 rendered-only chars, no model word, past the cap
+      injectRoot.insertBefore(junk, injectRoot.firstChild);
+      injected22 = true;
+    }
+    plugin.acceptanceStartSession(cm, NOTE);
+    const playing22 = await waitUntil(
+      () =>
+        plugin.acceptanceSession()?.state === "playing" &&
+        (plugin.acceptanceSession()?.currentWord ?? -1) >= 0,
+      8000
+    );
+    const surfaceNone22 = plugin.acceptanceSession()?.highlightSurface === "none";
+    const noRanges22 =
+      !CSS.highlights.has("se-word-r") &&
+      !CSS.highlights.has("se-sentence-r");
+    check(
+      "reading mode all-or-nothing: an unalignable note still plays but registers no highlight ranges (surface none)",
+      injected22 && playing22 && surfaceNone22 && noRanges22,
+      `injected=${injected22}, state=${plugin.acceptanceSession()?.state}, word=${plugin.acceptanceSession()?.currentWord}, surface=${plugin.acceptanceSession()?.highlightSurface}, wordReg=${CSS.highlights.has("se-word-r")}, sentReg=${CSS.highlights.has("se-sentence-r")}`
+    );
+    plugin.acceptanceDisposeSession();
+    // remove the injected junk so a rerun starts clean
+    try {
+      if (injectRoot && injected22 && injectRoot.firstChild) injectRoot.removeChild(injectRoot.firstChild);
+    } catch {
+      /* best-effort cleanup */
+    }
+
     if (hiddenMidRun()) {
       lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the control-surface checks; rAF-driven`, `measurements are invalid. Keep the window visible and rerun.`);
       await write();

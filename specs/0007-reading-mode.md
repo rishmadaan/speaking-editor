@@ -1,6 +1,6 @@
 # 0007: Reading Mode support
 
-Status: draft (builds after 0006 lands)
+Status: built (236 tests; live checks 20-22 pending the final armed run; long-note virtualization fails safe to no-highlight, noted for backlog)
 Date: 2026-07-12
 Depends on: 0001-0006. The v1 scope commits play/pause/resume from
 Reading Mode; live preview stays the flagship karaoke surface.

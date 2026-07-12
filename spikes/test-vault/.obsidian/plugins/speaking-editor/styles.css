@@ -15,6 +15,22 @@
   border-radius: 3px;
 }
 
+/* Reading-mode karaoke (spec 0007). The rendered preview is painted through the
+   CSS Custom Highlight API (no DOM mutation, no span wrapping), so the colors
+   live on ::highlight() pseudo-elements instead of classes. They mirror the
+   live-preview colors above via the same theme variables so both surfaces read
+   identically. ::highlight() supports only a small set of properties (color,
+   background-color, text-decoration), so no border-radius here. */
+
+::highlight(se-sentence-r) {
+  background-color: var(--text-selection);
+  background-color: color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+}
+
+::highlight(se-word-r) {
+  background-color: var(--text-highlight-bg);
+}
+
 /* The floating pill player (spec 0004). Absolutely positioned inside the editor's
    positioned container (scrollDOM's offset parent) so it holds bottom-center and
    never scrolls with the text. Theme variables only. Opacity is the ONLY animated

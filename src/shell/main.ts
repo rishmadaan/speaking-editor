@@ -11,6 +11,8 @@ import { homedir } from "os";
 import { join } from "path";
 import { syncField } from "./sync-field";
 import { ReadingSession, SessionState } from "./session";
+import { CmSurface, HighlightSurface } from "./highlight-surface";
+import { RangeSurface } from "./range-surface";
 import { runAcceptance } from "./acceptance";
 import { SpeakingEditorSettings, mergeSettings, rememberVoice, voiceForProvider } from "./settings";
 import { KeyStore } from "./key-store";
@@ -44,6 +46,17 @@ export default class SpeakingEditorPlugin extends Plugin {
   private session: ReadingSession | null = null;
   private sessionView: EditorView | null = null;
   private sessionUri = "untitled";
+  // The active session's markdown view and mode, so the mode-flip watcher can
+  // tell when the user toggled edit/preview mid-session (reading mode only mounts
+  // over the rendered surface; a flip ends the session).
+  private sessionMdView: MarkdownView | null = null;
+  private sessionMode: "reading" | "live" = "live";
+  // The rendered reading container the reading session aligned against (null in
+  // live preview): the click surface and the harness's reading container.
+  private sessionReadingContainer: HTMLElement | null = null;
+  // Where the pill mounts: the reading container's positioned parent in reading
+  // mode, the editor's in live preview.
+  private pillAnchor: HTMLElement | null = null;
   private ribbonEl: HTMLElement | null = null;
   private boundDoms = new WeakSet<HTMLElement>();
   // Exactly one pill ever exists, tied to the active session's UI.
@@ -95,6 +108,13 @@ export default class SpeakingEditorPlugin extends Plugin {
       name: "Toggle listening mode",
       callback: () => void this.toggleListeningMode(),
     });
+
+    // Mode-flip watcher: toggling a note between editing and reading changes the
+    // leaf's view state, which fires "layout-change". If that flips the mode of
+    // the note a session is playing, stop cleanly (cross-mode continuity is out of
+    // scope for v1). layout-change is the reliable signal for a preview/edit
+    // toggle; active-leaf-change would miss an in-place toggle on the same leaf.
+    this.registerEvent(this.app.workspace.on("layout-change", () => this.checkModeFlip()));
 
     this.addSettingTab(new SpeakingEditorSettingTab(this.app, this));
 
@@ -193,10 +213,15 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.disposeSession();
     this.positions = clearPosition(this.positions, uri);
     this.positionThrottle.flush(); // persist the clear now
+    const ctx = this.resolveSurfaceContext();
     this.sessionView = cm;
     this.sessionUri = uri;
+    this.sessionMdView = ctx.view;
+    this.sessionMode = ctx.mode;
+    this.sessionReadingContainer = ctx.container;
     this.session = this.buildSession(cm, uri); // no prime -> starts at word 0
-    this.bindClickToSeek(cm);
+    this.bindSeekSurface(cm, ctx.mode, ctx.container);
+    this.setPillAnchor(cm, ctx.mode, ctx.container);
     this.ensurePill();
     this.session.playPause();
   }
@@ -250,7 +275,10 @@ export default class SpeakingEditorPlugin extends Plugin {
   private reconfigureActiveSession() {
     if (!this.session || !this.sessionView) return;
     const cm = this.sessionView;
-    const word = cm.state.field(syncField, false)?.word ?? -1;
+    // Read the current word from the session (works in both modes; reading mode
+    // has no sync field to inspect). The mode/container persist, so the rebuilt
+    // session keeps the same surface kind.
+    const word = this.session.currentWord;
     this.session.dispose();
     this.session = this.buildSession(cm, this.sessionUri, word >= 0 ? word : undefined);
   }
@@ -260,10 +288,19 @@ export default class SpeakingEditorPlugin extends Plugin {
   private buildSession(cm: EditorView, uri: string, primeAtWord?: number): ReadingSession {
     const provider = buildProvider(this.settings.providerId, this.keyStore);
     const voice = voiceForProvider(this.settings, this.settings.providerId, provider.defaultVoice);
+    // Pick the paint surface by the session's mode (set by the caller): the CSS
+    // Highlight surface over the rendered container in reading mode, the CM6 sync
+    // field in live preview. The RangeSurface may fall back to "none" internally
+    // if the rendered text does not align with the model.
+    const surface: HighlightSurface =
+      this.sessionMode === "reading" && this.sessionReadingContainer
+        ? new RangeSurface(this.sessionReadingContainer)
+        : new CmSurface(cm);
     return new ReadingSession({
       docText: cm.state.doc.toString(),
       uri,
       view: cm,
+      surface,
       provider,
       voice,
       speed: this.settings.speed,
@@ -272,6 +309,59 @@ export default class SpeakingEditorPlugin extends Plugin {
       onState: (s) => this.onSessionState(s),
       onPositionSaved: (w) => this.onSessionPosition(w),
     });
+  }
+
+  // The active markdown view's mode: "reading" for the rendered preview, "live"
+  // for source/live-preview editing.
+  private modeOf(view: MarkdownView): "reading" | "live" {
+    return view.getMode() === "preview" ? "reading" : "live";
+  }
+
+  // The rendered content element to align and bind clicks against, preferring the
+  // inner sizer so leading chrome (properties, inline title) is minimal.
+  private readingContainerOf(view: MarkdownView): HTMLElement {
+    const root = view.previewMode.containerEl;
+    return (
+      (root.querySelector(".markdown-preview-sizer") as HTMLElement | null) ??
+      (root.querySelector(".markdown-preview-view") as HTMLElement | null) ??
+      root
+    );
+  }
+
+  // Resolve the surface context for a session about to start on the active view.
+  private resolveSurfaceContext(): {
+    view: MarkdownView | null;
+    mode: "reading" | "live";
+    container: HTMLElement | null;
+  } {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (view && this.modeOf(view) === "reading") {
+      return { view, mode: "reading", container: this.readingContainerOf(view) };
+    }
+    return { view, mode: "live", container: null };
+  }
+
+  // Bind the right click-to-seek surface for the mode, and remember where the pill
+  // mounts. Both are derived once at session start.
+  private bindSeekSurface(cm: EditorView, mode: "reading" | "live", container: HTMLElement | null) {
+    if (mode === "reading" && container) this.bindReadingClickToSeek(container);
+    else this.bindClickToSeek(cm);
+  }
+
+  private setPillAnchor(cm: EditorView, mode: "reading" | "live", container: HTMLElement | null) {
+    this.pillAnchor =
+      mode === "reading" && container
+        ? (container.offsetParent as HTMLElement | null) ?? container
+        : (cm.scrollDOM.offsetParent as HTMLElement | null) ?? cm.dom;
+  }
+
+  // Stop a running reading session when its view flips edit/preview mid-session.
+  private checkModeFlip() {
+    if (!this.session || !this.sessionMdView) return;
+    if (this.modeOf(this.sessionMdView) !== this.sessionMode) {
+      this.disposeSession();
+      new Notice("Reading stopped: the view changed");
+    }
   }
 
   private playPause() {
@@ -291,8 +381,14 @@ export default class SpeakingEditorPlugin extends Plugin {
   }
 
   private startSession(cm: EditorView, uri: string) {
+    // Pick the surface by the active view's mode BEFORE building the session, so
+    // the reading-mode branch aligns against the rendered container.
+    const ctx = this.resolveSurfaceContext();
     this.sessionView = cm;
     this.sessionUri = uri;
+    this.sessionMdView = ctx.view;
+    this.sessionMode = ctx.mode;
+    this.sessionReadingContainer = ctx.container;
     // Resume-on-play: a fresh (<12h) saved position starts the note from the
     // START OF THE SENTENCE containing that word, with one quiet Notice. The
     // session is primed PAUSED at that word and immediately played (resume snaps
@@ -304,7 +400,8 @@ export default class SpeakingEditorPlugin extends Plugin {
       primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
     }
     this.session = this.buildSession(cm, uri, primeAtWord);
-    this.bindClickToSeek(cm);
+    this.bindSeekSurface(cm, ctx.mode, ctx.container);
+    this.setPillAnchor(cm, ctx.mode, ctx.container);
     this.ensurePill(); // appears the moment a session starts
     this.session.playPause(); // begin playing (or resume from the primed word)
     if (primeAtWord != null) new Notice("Resumed where you left off");
@@ -322,6 +419,9 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.session?.dispose();
     this.session = null;
     this.sessionView = null;
+    this.sessionMdView = null;
+    this.sessionReadingContainer = null;
+    this.pillAnchor = null;
     this.updateRibbon("idle");
   }
 
@@ -347,11 +447,12 @@ export default class SpeakingEditorPlugin extends Plugin {
   // ─── Pill lifecycle ──────────────────────────────────────────────────────────
 
   private ensurePill() {
-    if (this.pill || !this.session || !this.sessionView) return;
-    // Anchor to the scroller's offset parent (the positioned .cm-editor) so the
-    // pill holds its spot and does not scroll with the text; fall back to the
-    // editor root if the offset parent is not resolvable yet.
-    const anchor = (this.sessionView.scrollDOM.offsetParent as HTMLElement | null) ?? this.sessionView.dom;
+    if (this.pill || !this.session) return;
+    // Mount at the anchor derived at session start: the reading container's
+    // positioned parent in reading mode, the editor's in live preview. The pill
+    // holds its spot and does not scroll with the text.
+    const anchor = this.pillAnchor ?? this.sessionView?.dom;
+    if (!anchor) return;
     this.pill = new PlayerPill(
       {
         onPlayPause: () => this.session?.playPause(),
@@ -483,6 +584,7 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   private onEditorMouseDown(view: EditorView, evt: MouseEvent) {
     if (!this.session || this.sessionView !== view) return; // no session: click edits normally
+    if (this.sessionMode !== "live") return; // reading mode seeks via its own handler
     if (!this.settings.listeningMode) return; // listening mode off: click edits normally
     const pos = view.posAtCoords({ x: evt.clientX, y: evt.clientY });
     if (pos == null) return;
@@ -491,5 +593,28 @@ export default class SpeakingEditorPlugin extends Plugin {
       words.find((e) => e.runs.some((r) => pos >= r.from && pos < r.to)) ??
       words.find((e) => e.runs.length > 0 && e.runs[0].from >= pos);
     if (w) this.session.seekToWord(w.index);
+  }
+
+  // Reading-mode click-to-seek: bound to the rendered container (bubbling), gated
+  // on a live reading session and listening mode. The RangeSurface maps the point
+  // via caretRangeFromPoint to the nearest aligned word; a miss is a no-op (the
+  // click behaves normally). Bind once per container.
+  private bindReadingClickToSeek(container: HTMLElement) {
+    if (this.boundDoms.has(container)) return;
+    this.boundDoms.add(container);
+    this.registerDomEvent(container, "mousedown", (evt) => this.onReadingMouseDown(container, evt));
+  }
+
+  private onReadingMouseDown(container: HTMLElement, evt: MouseEvent) {
+    if (!this.session || this.sessionMode !== "reading") return;
+    if (this.sessionReadingContainer !== container) return; // stale binding from a prior session
+    if (!this.settings.listeningMode) return;
+    this.session.seekReading(evt.clientX, evt.clientY);
+  }
+
+  // Acceptance-only: the rendered container the current reading session aligned
+  // against, so the harness can dispatch a real mousedown on it (check 21).
+  acceptanceReadingContainer(): HTMLElement | null {
+    return this.sessionReadingContainer;
   }
 }
