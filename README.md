@@ -43,6 +43,8 @@ Speaking Editor is **desktop only** (its manifest is flagged `isDesktopOnly`). T
 
 ## Quick start
 
+New here? The [User Guide](docs/USER-GUIDE.md) is the full reference; this is the loop:
+
 1. Install the plugin (see Install, below) and enable it in **Settings -> Community plugins**.
 2. Open any note.
 3. Click the **play** ribbon icon (left sidebar), or run the command **"Play or pause reading"** from the command palette.
