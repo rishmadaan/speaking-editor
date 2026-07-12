@@ -1,0 +1,9 @@
+{
+  "id": "speaking-editor-spike1",
+  "name": "Speaking Editor Spike 1 (Edge TTS)",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "Throwaway spike: vendored Edge TTS provider with word timing inside Obsidian.",
+  "author": "Rishabh Madaan",
+  "isDesktopOnly": true
+}
