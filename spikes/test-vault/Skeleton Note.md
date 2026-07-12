@@ -1,10 +1,10 @@
-TYPED ---
+Z TYPED ---
 title: Skeleton fixture
 ---
 
-# Heading With Words To Read
+# Heaxding With Words To Read
 
-This first paragraph is plain prose with a good many ordinary words so the
+This fixrst paragraph is plain prose with a goxod many ordinary words so the
 reader has a calm runway to walk across before anything interesting happens.
 
 The second paragraph has **bold emphasis**, some *italic drift*, an `inline code` span,
