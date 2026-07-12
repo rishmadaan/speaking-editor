@@ -107,8 +107,19 @@ export class PlayerPill {
   }
 
   setState(state: SessionState): void {
-    // Playing shows the pause glyph; anything else shows play.
-    this.setControlIcon(this.playBtn, state === "playing" ? "pause" : "play");
+    // Playing shows the pause glyph; preparing does too, since a press during the
+    // synthesis gap pauses/cancels the pending start. Anything else shows play.
+    const showPause = state === "playing" || state === "preparing";
+    this.setControlIcon(this.playBtn, showPause ? "pause" : "play");
+  }
+
+  // Toggle the quiet preparing pulse (opacity-only keyframes in styles.css). The
+  // animation rides the play control (se-pill-play-preparing); the root also
+  // carries se-pill-preparing so the whole pill reads as "preparing" for callers
+  // that inspect the root. On while a start is pending, off once audio plays.
+  setPreparing(on: boolean): void {
+    this.playBtn.classList.toggle("se-pill-play-preparing", on);
+    this.root.classList.toggle("se-pill-preparing", on);
   }
 
   setSpeed(rate: number): void {

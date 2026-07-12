@@ -85,6 +85,29 @@ describe("cacheSizeMb", () => {
   });
 });
 
+describe("seekHintsShown", () => {
+  it("defaults to 0", () => {
+    expect(DEFAULT_SETTINGS.seekHintsShown).toBe(0);
+    expect(mergeSettings({}).seekHintsShown).toBe(0);
+  });
+
+  it("defaults seekHintsShown for old payloads that lack it (mergeSettings stays green)", () => {
+    expect(mergeSettings({ providerId: "say", speed: 2 }).seekHintsShown).toBe(0);
+  });
+
+  it("keeps a valid saved count and floors it", () => {
+    expect(mergeSettings({ seekHintsShown: 2 }).seekHintsShown).toBe(2);
+    expect(mergeSettings({ seekHintsShown: 3 }).seekHintsShown).toBe(3);
+    expect(mergeSettings({ seekHintsShown: 2.9 } as any).seekHintsShown).toBe(2);
+  });
+
+  it("clamps a negative, non-number, or non-finite count to 0", () => {
+    expect(mergeSettings({ seekHintsShown: -1 } as any).seekHintsShown).toBe(0);
+    expect(mergeSettings({ seekHintsShown: "3" } as any).seekHintsShown).toBe(0);
+    expect(mergeSettings({ seekHintsShown: NaN } as any).seekHintsShown).toBe(0);
+  });
+});
+
 describe("voiceForProvider", () => {
   it("returns the remembered voice when one exists", () => {
     const s: SpeakingEditorSettings = { ...DEFAULT_SETTINGS, voiceByProvider: { edge: "en-GB-SoniaNeural" } };

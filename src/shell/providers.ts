@@ -11,6 +11,7 @@ import { ElevenLabsProvider } from "../engine/synthesis/elevenlabs";
 import {
   availableProviders as catalogAvailable,
   ProviderDescriptor,
+  PROVIDER_CATALOG,
 } from "../engine/synthesis/provider-catalog";
 import { KeyStore } from "./key-store";
 
@@ -44,4 +45,10 @@ export function availableProviders(
 
 export function defaultVoiceFor(provider: TtsProvider): string {
   return provider.defaultVoice;
+}
+
+// The display label for a provider id (for error copy and menus), from the
+// catalog; falls back to the raw id for an unknown provider.
+export function providerLabel(providerId: string): string {
+  return PROVIDER_CATALOG.find((p) => p.id === providerId)?.label ?? providerId;
 }

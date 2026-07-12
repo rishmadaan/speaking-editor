@@ -18818,34 +18818,36 @@ var ReadingSession = class {
   // ─── Public API ────────────────────────────────────────────────────────────
   playPause() {
     if (!this.disposed) {
-      if (this._state === "playing") {
+      if (this._state === "playing" || this._state === "preparing") {
         this.engine.pause();
         return;
       }
       if (this._state === "paused") {
-        this.active = !0, this.engine.resume(), this.startLoop();
+        this.enterPreparing(), this.engine.resume(), this.startLoop();
         return;
       }
       if (this._state === "ended") {
-        this.active = !0, this.engine.jumpToWord(0), this.startLoop();
+        this.enterPreparing(), this.engine.jumpToWord(0), this.startLoop();
         return;
       }
-      this.active = !0, this.engine.start(0), this.startLoop();
+      this.enterPreparing(), this.engine.start(0), this.startLoop();
     }
   }
   stop() {
     this.disposed || (this._state = "idle", this.teardown(), this.onStateCb("idle"));
   }
   seekToWord(wordIndex) {
-    this.disposed || (this.active = !0, this.engine.jumpToWord(wordIndex), this.startLoop());
+    this.disposed || (this.enterPreparing(), this.engine.jumpToWord(wordIndex), this.startLoop());
   }
   // Reading-mode click-to-seek: hand a viewport point to the surface, which maps
-  // it to the nearest aligned word, and seek there. A no-op on surfaces that do
-  // not hit-test (live preview does its own click handling on the editor).
+  // it to the nearest aligned word, and seek there. Returns true when a word was
+  // hit and a seek was issued, false on a miss (so the shell knows whether to show
+  // the first-jump hint). A no-op on surfaces that do not hit-test (live preview
+  // does its own click handling on the editor).
   seekReading(x, y) {
-    if (this.disposed) return;
+    if (this.disposed) return !1;
     let w = this.surface.hitTest?.(x, y);
-    w != null && w >= 0 && this.seekToWord(w);
+    return w != null && w >= 0 ? (this.seekToWord(w), !0) : !1;
   }
   // Apply a new playback rate to the live audio without a rebuild. The caller
   // (main.ts) also persists the rate so future sessions start at it.
@@ -18899,6 +18901,13 @@ var ReadingSession = class {
     this._state = s, s === "playing" ? this.startLoop() : this.stopLoop(), s === "ended" && (this.active = !1), this.onStateCb(s);
   }
   // ─── Internals ────────────────────────────────────────────────────────────────
+  // Mark a playback request in flight: expose "preparing" now so the UI answers
+  // the press immediately (breathing pill / loader ribbon). The engine reports
+  // "playing" when audio actually starts, overwriting this; a synchronous start
+  // (already-loaded chunk) overwrites it within the same call, so no flicker.
+  enterPreparing() {
+    this.active = !0, this._state = "preparing", this.onStateCb("preparing");
+  }
   loop = () => {
     this.engine.tick(), this.rafId = requestAnimationFrame(this.loop);
   };
@@ -19048,7 +19057,165 @@ var RangeSurface = class {
 };
 
 // src/shell/acceptance.ts
-var import_obsidian = require("obsidian"), import_view3 = require("@codemirror/view"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path");
+var import_obsidian = require("obsidian"), import_view3 = require("@codemirror/view"), import_fs3 = require("fs"), import_os2 = require("os"), import_path3 = require("path");
+
+// src/shell/error-copy.ts
+function providerPhrase(providerId, providerLabel2) {
+  switch (providerId) {
+    case "edge":
+      return "The free Edge voice";
+    case "elevenlabs":
+      return "The ElevenLabs voice";
+    case "openai":
+      return "The OpenAI voice";
+    case "say":
+      return "The offline macOS voice";
+    default:
+      return `The ${providerLabel2} voice`;
+  }
+}
+function mapProviderError(providerId, providerLabel2, platform, _error) {
+  let phrase = providerPhrase(providerId, providerLabel2);
+  return { sentence: providerId === "say" ? `${phrase} could not be started.` : `${phrase} could not be reached.`, action: platform === "darwin" && providerId !== "say" ? "offline-fallback" : "open-settings" };
+}
+
+// src/engine/synthesis/say.ts
+var import_child_process = require("child_process"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path"), import_util = require("util");
+var run = (0, import_util.promisify)(import_child_process.execFile), NOVELTY_VOICES = /* @__PURE__ */ new Set([
+  "Bad News",
+  "Bahh",
+  "Bells",
+  "Boing",
+  "Bubbles",
+  "Cellos",
+  "Wobble",
+  "Albert",
+  "Jester",
+  "Hysterical",
+  "Organ",
+  "Superstar",
+  "Trinoids",
+  "Whisper",
+  "Zarvox",
+  "Deranged",
+  "Good News",
+  "Pipe Organ",
+  "Ralph",
+  "Kathy",
+  "Junior",
+  "Fred"
+]);
+function parseSayVoices(stdout) {
+  return stdout.split(`
+`).flatMap((line) => {
+    let m = line.match(/^([\w ()-]+?)\s{2,}([a-z]{2}[-_]\w+)/);
+    if (!m || !m[2].startsWith("en")) return [];
+    let name = m[1].trim();
+    return NOVELTY_VOICES.has(name) ? [] : [{ id: name, label: name }];
+  });
+}
+var SayProvider = class {
+  id = "say";
+  label = "macOS say (offline)";
+  requiresKey = !1;
+  timingQuality = "estimated";
+  maxCharsPerRequest = 2e4;
+  defaultVoice = "Samantha";
+  async listVoices() {
+    try {
+      let { stdout } = await run("say", ["-v", "?"]);
+      return parseSayVoices(stdout);
+    } catch {
+      return [{ id: "Samantha", label: "Samantha" }];
+    }
+  }
+  async synthesize(chunk, voice, signal) {
+    let out = (0, import_path2.join)((0, import_os.tmpdir)(), `talktomebaby-say-${Date.now()}-${chunk.index}.wav`);
+    try {
+      return await run(
+        "say",
+        ["-v", voice, "-o", out, "--file-format=WAVE", "--data-format=LEI16@22050", chunk.text],
+        { signal }
+      ), { audio: new Uint8Array(await import_fs2.promises.readFile(out)), format: "wav", timings: estimatedTimings(chunk) };
+    } finally {
+      await import_fs2.promises.rm(out, { force: !0 });
+    }
+  }
+};
+
+// src/engine/synthesis/elevenlabs.ts
+var BASE = "https://api.elevenlabs.io/v1", ElevenLabsProvider = class {
+  // Rachel
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+  }
+  apiKey;
+  id = "elevenlabs";
+  label = "ElevenLabs";
+  requiresKey = !0;
+  timingQuality = "exact";
+  maxCharsPerRequest = 5e3;
+  defaultVoice = "21m00Tcm4TlvDq8ikWAM";
+  async listVoices() {
+    try {
+      let res = await fetch(`${BASE}/voices`, { headers: { "xi-api-key": this.apiKey } });
+      return res.ok ? (await res.json()).voices.map((v) => ({ id: v.voice_id, label: v.name })) : [{ id: this.defaultVoice, label: "Rachel" }];
+    } catch {
+      return [{ id: this.defaultVoice, label: "Rachel" }];
+    }
+  }
+  async synthesize(chunk, voice, signal) {
+    let res = await fetch(`${BASE}/text-to-speech/${voice}/with-timestamps`, {
+      method: "POST",
+      signal,
+      headers: { "Content-Type": "application/json", "xi-api-key": this.apiKey },
+      body: JSON.stringify({ text: chunk.text, model_id: "eleven_multilingual_v2" })
+    });
+    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    let data = await res.json(), audio = new Uint8Array(Buffer.from(data.audio_base64, "base64")), timings = timingsFromCharAlignment(
+      chunk,
+      data.alignment.characters,
+      data.alignment.character_start_times_seconds,
+      data.alignment.character_end_times_seconds
+    );
+    return { audio, format: "mp3", timings };
+  }
+};
+
+// src/engine/synthesis/provider-catalog.ts
+var PROVIDER_CATALOG = [
+  { id: "edge", label: "Edge TTS", description: "Free \xB7 word-level timing", requiresKey: !1 },
+  { id: "elevenlabs", label: "ElevenLabs", description: "Premium \xB7 word-level timing", requiresKey: !0 },
+  { id: "openai", label: "OpenAI", description: "Premium \xB7 estimated timing", requiresKey: !0 },
+  { id: "say", label: "macOS say", description: "Offline \xB7 estimated timing", requiresKey: !1, darwinOnly: !0 },
+  { id: "sarvam", label: "Sarvam AI", description: "Indian English \xB7 estimated timing", requiresKey: !0 }
+];
+function availableProviders(platform) {
+  return PROVIDER_CATALOG.filter((p) => !p.darwinOnly || platform === "darwin");
+}
+
+// src/shell/providers.ts
+var SURFACED_PROVIDER_IDS = /* @__PURE__ */ new Set(["edge", "elevenlabs", "say"]);
+function buildProvider(providerId, keyStore) {
+  switch (providerId) {
+    case "edge":
+      return new EdgeProvider();
+    case "say":
+      return new SayProvider();
+    case "elevenlabs":
+      return new ElevenLabsProvider(keyStore.get("elevenlabs") ?? "");
+    default:
+      return new EdgeProvider();
+  }
+}
+function availableProviders2(platform = process.platform) {
+  return availableProviders(platform).filter((p) => SURFACED_PROVIDER_IDS.has(p.id));
+}
+function providerLabel(providerId) {
+  return PROVIDER_CATALOG.find((p) => p.id === providerId)?.label ?? providerId;
+}
+
+// src/shell/acceptance.ts
 var CountingProvider = class {
   constructor(inner) {
     this.inner = inner;
@@ -19373,7 +19540,7 @@ ARMED: waiting for the window to become visible (10 minute limit)...
       "clicking the voice control opens the provider+voice menu; a voice pick lands paused-primed and updates the label",
       "menus need real user input; the reconfigure contract is covered by check 10"
     );
-    let harnessCacheDir = (0, import_fs2.mkdtempSync)((0, import_path2.join)((0, import_os.tmpdir)(), "se-acceptance-cache-")), sharedCache = new DiskCache(harnessCacheDir, 200 * 1024 * 1024), edge = new EdgeProvider(), counting1 = new CountingProvider(edge);
+    let harnessCacheDir = (0, import_fs3.mkdtempSync)((0, import_path3.join)((0, import_os2.tmpdir)(), "se-acceptance-cache-")), sharedCache = new DiskCache(harnessCacheDir, 200 * 1024 * 1024), edge = new EdgeProvider(), counting1 = new CountingProvider(edge);
     session = new ReadingSession({
       docText: cm.state.doc.toString(),
       uri: NOTE,
@@ -19496,7 +19663,69 @@ ARMED: waiting for the window to become visible (10 minute limit)...
       injectRoot && injected22 && injectRoot.firstChild && injectRoot.removeChild(injectRoot.firstChild);
     } catch {
     }
-    if (hiddenMidRun()) {
+    await mdView.setState(
+      { ...mdView.getState(), mode: "source", source: !1 },
+      { history: !1 }
+    ), await sleep(200), plugin.acceptanceClearPosition(NOTE), plugin.acceptanceStartSession(cm, NOTE);
+    let preparingState23 = plugin.acceptanceSession()?.state === "preparing", pillPreparing23 = !!document.querySelector(".se-pill-preparing") || !!document.querySelector(".se-pill-play-preparing"), cleared23 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && !document.querySelector(".se-pill-preparing") && !document.querySelector(".se-pill-play-preparing"),
+      1e4
+    );
+    check(
+      "play reports preparing with a breathing pill; both clear when playing arrives",
+      preparingState23 && pillPreparing23 && cleared23,
+      `preparing=${preparingState23}, pillPreparing=${pillPreparing23}, clearedOnPlaying=${cleared23}, state=${plugin.acceptanceSession()?.state}`
+    ), plugin.acceptanceDisposeSession();
+    let failingProvider = {
+      id: "edge",
+      label: "Edge TTS",
+      requiresKey: !1,
+      timingQuality: "exact",
+      maxCharsPerRequest: 6e3,
+      defaultVoice: "en-US-AriaNeural",
+      listVoices: () => Promise.resolve([]),
+      synthesize: () => Promise.reject(new Error("ECONNRESET fake"))
+    }, expected24 = mapProviderError(
+      plugin.settings.providerId,
+      providerLabel(plugin.settings.providerId),
+      process.platform,
+      "ECONNRESET fake"
+    ).sentence, errorNotice = null;
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      provider: failingProvider,
+      onState: (s, msg) => {
+        s === "error" && (errorNotice = plugin.acceptanceShowSessionError(msg));
+      }
+    }), session.playPause();
+    let noticeShown24 = await waitUntil(
+      () => Array.from(document.querySelectorAll(".notice")).some(
+        (n) => (n.textContent ?? "").includes(expected24)
+      ),
+      1e4
+    ), noticeEls24 = Array.from(document.querySelectorAll(".notice")), noticeText24 = noticeEls24.map((n) => n.textContent ?? "").join(" | "), hasSentence24 = noticeText24.includes(expected24), hasAction24 = noticeEls24.some((n) => !!n.querySelector("button")), noRawError24 = !noticeText24.includes("ECONNRESET");
+    check(
+      "a provider failure shows a human notice with an action, never the raw exception",
+      noticeShown24 && hasSentence24 && hasAction24 && noRawError24,
+      `expected="${expected24}", shown=${noticeShown24}, sentence=${hasSentence24}, action=${hasAction24}, noRaw=${noRawError24}`
+    ), errorNotice?.hide(), session.dispose(), session = null, plugin.acceptanceClearPosition(NOTE), plugin.settings.listeningMode = !0, plugin.acceptanceStartSession(cm, NOTE);
+    let started25 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      1e4
+    );
+    plugin.acceptanceSession()?.playPause(), await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 2e3);
+    let clickable25 = field().words.filter((e) => e.runs.length > 0), target25a = clickable25[Math.min(clickable25.length - 1, 20)], target25b = clickable25[Math.min(clickable25.length - 1, 10)];
+    document.querySelectorAll(".se-hint").forEach((e) => e.remove()), plugin.settings.seekHintsShown = 0;
+    let clicked25a = await clickWord(target25a), hintShown25 = await waitUntil(() => !!document.querySelector(".se-hint"), 1500);
+    document.querySelectorAll(".se-hint").forEach((e) => e.remove()), plugin.settings.seekHintsShown = 3;
+    let clicked25b = await clickWord(target25b), hintSuppressed25 = !await waitUntil(() => !!document.querySelector(".se-hint"), 900);
+    if (check(
+      "the first-jump hint shows at counter 0 and is suppressed at counter 3",
+      started25 && clicked25a && hintShown25 && clicked25b && hintSuppressed25,
+      `shownAt0=${hintShown25}, suppressedAt3=${hintSuppressed25}, counterAfterFirst=${plugin.settings.seekHintsShown}`
+    ), plugin.acceptanceDisposeSession(), document.querySelectorAll(".se-hint").forEach((e) => e.remove()), hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
     }
@@ -19517,7 +19746,7 @@ ARMED: waiting for the window to become visible (10 minute limit)...
     plugin.acceptanceRunning = !1, banner.hide(), session?.dispose(), plugin.acceptanceDisposeSession();
     try {
       let snap = JSON.parse(settingsSnapshot);
-      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, plugin.acceptanceRestorePositions(positionsSnapshot), await plugin.saveSettings();
+      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, plugin.settings.seekHintsShown = snap.seekHintsShown, plugin.acceptanceRestorePositions(positionsSnapshot), await plugin.saveSettings();
     } catch {
     }
   }
@@ -19529,7 +19758,8 @@ var CACHE_SIZE_CHOICES = [50, 200, 500, 1e3], DEFAULT_SETTINGS = {
   voiceByProvider: {},
   speed: 1,
   listeningMode: !0,
-  cacheSizeMb: 200
+  cacheSizeMb: 200,
+  seekHintsShown: 0
 };
 function mergeSettings(saved) {
   let s = saved ?? {};
@@ -19538,7 +19768,10 @@ function mergeSettings(saved) {
     voiceByProvider: s.voiceByProvider && typeof s.voiceByProvider == "object" ? { ...s.voiceByProvider } : {},
     speed: typeof s.speed == "number" ? s.speed : DEFAULT_SETTINGS.speed,
     listeningMode: typeof s.listeningMode == "boolean" ? s.listeningMode : DEFAULT_SETTINGS.listeningMode,
-    cacheSizeMb: CACHE_SIZE_CHOICES.includes(s.cacheSizeMb) ? s.cacheSizeMb : DEFAULT_SETTINGS.cacheSizeMb
+    cacheSizeMb: CACHE_SIZE_CHOICES.includes(s.cacheSizeMb) ? s.cacheSizeMb : DEFAULT_SETTINGS.cacheSizeMb,
+    // A non-negative integer, else 0. Clamps a stray/negative payload so the gate
+    // stays sane; old payloads without the field default to 0 (hint still teaches).
+    seekHintsShown: typeof s.seekHintsShown == "number" && Number.isFinite(s.seekHintsShown) && s.seekHintsShown >= 0 ? Math.floor(s.seekHintsShown) : DEFAULT_SETTINGS.seekHintsShown
   };
 }
 function voiceForProvider(settings, providerId, providerDefaultVoice) {
@@ -19574,137 +19807,18 @@ var KeyStore = class {
   }
 };
 
-// src/engine/synthesis/say.ts
-var import_child_process = require("child_process"), import_fs3 = require("fs"), import_os2 = require("os"), import_path3 = require("path"), import_util = require("util");
-var run = (0, import_util.promisify)(import_child_process.execFile), NOVELTY_VOICES = /* @__PURE__ */ new Set([
-  "Bad News",
-  "Bahh",
-  "Bells",
-  "Boing",
-  "Bubbles",
-  "Cellos",
-  "Wobble",
-  "Albert",
-  "Jester",
-  "Hysterical",
-  "Organ",
-  "Superstar",
-  "Trinoids",
-  "Whisper",
-  "Zarvox",
-  "Deranged",
-  "Good News",
-  "Pipe Organ",
-  "Ralph",
-  "Kathy",
-  "Junior",
-  "Fred"
-]);
-function parseSayVoices(stdout) {
-  return stdout.split(`
-`).flatMap((line) => {
-    let m = line.match(/^([\w ()-]+?)\s{2,}([a-z]{2}[-_]\w+)/);
-    if (!m || !m[2].startsWith("en")) return [];
-    let name = m[1].trim();
-    return NOVELTY_VOICES.has(name) ? [] : [{ id: name, label: name }];
-  });
+// src/shell/hint.ts
+var SEEK_HINT_TEXT = "Jumped here. That is listening mode; the ear turns it off.";
+function shouldShowSeekHint(count) {
+  return count < 3;
 }
-var SayProvider = class {
-  id = "say";
-  label = "macOS say (offline)";
-  requiresKey = !1;
-  timingQuality = "estimated";
-  maxCharsPerRequest = 2e4;
-  defaultVoice = "Samantha";
-  async listVoices() {
-    try {
-      let { stdout } = await run("say", ["-v", "?"]);
-      return parseSayVoices(stdout);
-    } catch {
-      return [{ id: "Samantha", label: "Samantha" }];
-    }
-  }
-  async synthesize(chunk, voice, signal) {
-    let out = (0, import_path3.join)((0, import_os2.tmpdir)(), `talktomebaby-say-${Date.now()}-${chunk.index}.wav`);
-    try {
-      return await run(
-        "say",
-        ["-v", voice, "-o", out, "--file-format=WAVE", "--data-format=LEI16@22050", chunk.text],
-        { signal }
-      ), { audio: new Uint8Array(await import_fs3.promises.readFile(out)), format: "wav", timings: estimatedTimings(chunk) };
-    } finally {
-      await import_fs3.promises.rm(out, { force: !0 });
-    }
-  }
-};
-
-// src/engine/synthesis/elevenlabs.ts
-var BASE = "https://api.elevenlabs.io/v1", ElevenLabsProvider = class {
-  // Rachel
-  constructor(apiKey) {
-    this.apiKey = apiKey;
-  }
-  apiKey;
-  id = "elevenlabs";
-  label = "ElevenLabs";
-  requiresKey = !0;
-  timingQuality = "exact";
-  maxCharsPerRequest = 5e3;
-  defaultVoice = "21m00Tcm4TlvDq8ikWAM";
-  async listVoices() {
-    try {
-      let res = await fetch(`${BASE}/voices`, { headers: { "xi-api-key": this.apiKey } });
-      return res.ok ? (await res.json()).voices.map((v) => ({ id: v.voice_id, label: v.name })) : [{ id: this.defaultVoice, label: "Rachel" }];
-    } catch {
-      return [{ id: this.defaultVoice, label: "Rachel" }];
-    }
-  }
-  async synthesize(chunk, voice, signal) {
-    let res = await fetch(`${BASE}/text-to-speech/${voice}/with-timestamps`, {
-      method: "POST",
-      signal,
-      headers: { "Content-Type": "application/json", "xi-api-key": this.apiKey },
-      body: JSON.stringify({ text: chunk.text, model_id: "eleven_multilingual_v2" })
-    });
-    if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`);
-    let data = await res.json(), audio = new Uint8Array(Buffer.from(data.audio_base64, "base64")), timings = timingsFromCharAlignment(
-      chunk,
-      data.alignment.characters,
-      data.alignment.character_start_times_seconds,
-      data.alignment.character_end_times_seconds
-    );
-    return { audio, format: "mp3", timings };
-  }
-};
-
-// src/engine/synthesis/provider-catalog.ts
-var PROVIDER_CATALOG = [
-  { id: "edge", label: "Edge TTS", description: "Free \xB7 word-level timing", requiresKey: !1 },
-  { id: "elevenlabs", label: "ElevenLabs", description: "Premium \xB7 word-level timing", requiresKey: !0 },
-  { id: "openai", label: "OpenAI", description: "Premium \xB7 estimated timing", requiresKey: !0 },
-  { id: "say", label: "macOS say", description: "Offline \xB7 estimated timing", requiresKey: !1, darwinOnly: !0 },
-  { id: "sarvam", label: "Sarvam AI", description: "Indian English \xB7 estimated timing", requiresKey: !0 }
-];
-function availableProviders(platform) {
-  return PROVIDER_CATALOG.filter((p) => !p.darwinOnly || platform === "darwin");
-}
-
-// src/shell/providers.ts
-var SURFACED_PROVIDER_IDS = /* @__PURE__ */ new Set(["edge", "elevenlabs", "say"]);
-function buildProvider(providerId, keyStore) {
-  switch (providerId) {
-    case "edge":
-      return new EdgeProvider();
-    case "say":
-      return new SayProvider();
-    case "elevenlabs":
-      return new ElevenLabsProvider(keyStore.get("elevenlabs") ?? "");
-    default:
-      return new EdgeProvider();
-  }
-}
-function availableProviders2(platform = process.platform) {
-  return availableProviders(platform).filter((p) => SURFACED_PROVIDER_IDS.has(p.id));
+function createSeekHint(doc, opts = {}) {
+  let visibleMs = opts.visibleMs ?? 4e3, el = doc.createElement("div");
+  return el.className = "se-hint", el.setAttribute("role", "status"), el.textContent = SEEK_HINT_TEXT, setTimeout(() => el.classList.add("se-hint-visible"), 0), setTimeout(() => {
+    el.classList.remove("se-hint-visible"), setTimeout(() => {
+      el.remove(), opts.onDone?.();
+    }, 250);
+  }, visibleMs), el;
 }
 
 // src/engine/synthesis/voice-cache.ts
@@ -19859,7 +19973,15 @@ var PlayerPill = class {
     container.appendChild(this.root);
   }
   setState(state) {
-    this.setControlIcon(this.playBtn, state === "playing" ? "pause" : "play");
+    let showPause = state === "playing" || state === "preparing";
+    this.setControlIcon(this.playBtn, showPause ? "pause" : "play");
+  }
+  // Toggle the quiet preparing pulse (opacity-only keyframes in styles.css). The
+  // animation rides the play control (se-pill-play-preparing); the root also
+  // carries se-pill-preparing so the whole pill reads as "preparing" for callers
+  // that inspect the root. On while a start is pending, off once audio plays.
+  setPreparing(on) {
+    this.playBtn.classList.toggle("se-pill-play-preparing", on), this.root.classList.toggle("se-pill-preparing", on);
   }
   setSpeed(rate) {
     this.speedBtn.textContent = formatRate(rate);
@@ -20073,6 +20195,9 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   boundDoms = /* @__PURE__ */ new WeakSet();
   // Exactly one pill ever exists, tied to the active session's UI.
   pill = null;
+  // The first-jump teaching hint currently on screen, if any: while one is up we
+  // do not create a second (spec 0009 point 3). Cleared when it self-dismisses.
+  seekHint = null;
   // ONE disk cache for every session, built at load and rebuilt on a size change.
   cache;
   // Per-note reading positions, mirrored to data.json (throttled).
@@ -20218,7 +20343,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
       speed: this.settings.speed,
       primeAtWord,
       cache: this.cache,
-      onState: (s) => this.onSessionState(s),
+      onState: (s, msg) => this.onSessionState(s, msg),
       onPositionSaved: (w) => this.onSessionPosition(w)
     });
   }
@@ -20280,10 +20405,30 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     this.session && (this.session.stop(), this.positionThrottle.flush(), this.updateRibbon("idle"));
   }
   disposeSession() {
-    this.destroyPill(), this.session?.dispose(), this.session = null, this.sessionView = null, this.sessionMdView = null, this.sessionReadingContainer = null, this.pillAnchor = null, this.updateRibbon("idle");
+    this.destroyPill(), this.seekHint?.remove(), this.seekHint = null, this.session?.dispose(), this.session = null, this.sessionView = null, this.sessionMdView = null, this.sessionReadingContainer = null, this.pillAnchor = null, this.updateRibbon("idle");
   }
-  onSessionState(state) {
-    this.updateRibbon(state), state === "ended" && (this.positions = clearPosition(this.positions, this.sessionUri), this.positionThrottle.flush()), state === "playing" || state === "paused" ? (this.ensurePill(), this.pill?.setState(state)) : this.destroyPill();
+  onSessionState(state, message) {
+    if (this.updateRibbon(state), state === "ended" && (this.positions = clearPosition(this.positions, this.sessionUri), this.positionThrottle.flush()), state === "error") {
+      this.showSessionError(message), this.destroyPill();
+      return;
+    }
+    state === "playing" || state === "paused" || state === "preparing" ? (this.ensurePill(), this.pill?.setState(state), this.pill?.setPreparing(state === "preparing")) : this.destroyPill();
+  }
+  // Build the persistent error Notice (spec 0009 point 2): a plain sentence naming
+  // the provider that failed, plus exactly one action. On macOS with a non-say
+  // provider the action switches to the offline voice and restarts reading from
+  // the current position (the reconfigure machinery); otherwise it opens settings.
+  // The raw exception goes to the console for debuggability, never to the user.
+  showSessionError(rawMessage) {
+    rawMessage && console.error("[Speaking Editor] synthesis failed:", rawMessage);
+    let providerId = this.settings.providerId, copy = mapProviderError(providerId, providerLabel(providerId), process.platform, rawMessage), frag = document.createDocumentFragment(), line = frag.appendChild(document.createElement("div"));
+    line.textContent = copy.sentence;
+    let btn = frag.appendChild(document.createElement("button"));
+    btn.type = "button", btn.className = "se-error-action", btn.textContent = copy.action === "offline-fallback" ? "Switch to the offline voice" : "Open settings";
+    let notice = new import_obsidian3.Notice(frag, 0);
+    return btn.addEventListener("click", () => {
+      notice.hide(), copy.action === "offline-fallback" ? this.applyProvider("say").then(() => this.session?.playPause()) : this.openSettingsTab();
+    }), notice;
   }
   // ─── Pill lifecycle ──────────────────────────────────────────────────────────
   ensurePill() {
@@ -20362,8 +20507,8 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   }
   updateRibbon(state) {
     if (!this.ribbonEl) return;
-    let icon = state === "playing" ? "pause" : state === "paused" ? "play" : "play-circle";
-    (0, import_obsidian3.setIcon)(this.ribbonEl, icon);
+    let preparing = state === "preparing", icon = preparing ? "loader-2" : state === "playing" ? "pause" : state === "paused" ? "play" : "play-circle";
+    (0, import_obsidian3.setIcon)(this.ribbonEl, icon), this.ribbonEl.classList.toggle("se-preparing-pulse", preparing);
   }
   // ─── Acceptance helpers (dev-only, used by the harness) ───────────────────────
   // True while the verification run owns the plugin; user-facing playback
@@ -20382,6 +20527,12 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   }
   acceptanceSession() {
     return this.session;
+  }
+  // Drive the real error-Notice path from a harness session's onState("error"),
+  // so check 24 can assert the user sees the mapped sentence and an action button,
+  // never the raw exception. Returns the Notice so the check can dismiss it.
+  acceptanceShowSessionError(message) {
+    return this.showSessionError(message);
   }
   acceptanceDisposeSession() {
     this.disposeSession();
@@ -20408,7 +20559,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     let pos = view.posAtCoords({ x: evt.clientX, y: evt.clientY });
     if (pos == null) return;
     let words = view.state.field(syncField).words, w = words.find((e) => e.runs.some((r) => pos >= r.from && pos < r.to)) ?? words.find((e) => e.runs.length > 0 && e.runs[0].from >= pos);
-    w && this.session.seekToWord(w.index);
+    w && (this.session.seekToWord(w.index), this.maybeShowSeekHint());
   }
   // Reading-mode click-to-seek: bound to the rendered container (bubbling), gated
   // on a live reading session and listening mode. The RangeSurface maps the point
@@ -20418,7 +20569,17 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     this.boundDoms.has(container) || (this.boundDoms.add(container), this.registerDomEvent(container, "mousedown", (evt) => this.onReadingMouseDown(container, evt)));
   }
   onReadingMouseDown(container, evt) {
-    !this.session || this.sessionMode !== "reading" || this.sessionReadingContainer === container && this.settings.listeningMode && this.session.seekReading(evt.clientX, evt.clientY);
+    !this.session || this.sessionMode !== "reading" || this.sessionReadingContainer === container && this.settings.listeningMode && this.session.seekReading(evt.clientX, evt.clientY) && this.maybeShowSeekHint();
+  }
+  // Show the first-jump teaching hint on a real seek, the first few times only.
+  // Gated on the persisted counter ALONE (not acceptanceRunning): the hint is a
+  // passive, self-dismissing overlay, so it is allowed to fire during the harness,
+  // which is exactly what the seek-hint acceptance check exercises. A hint already
+  // on screen is not re-created; each shown hint increments and persists the count.
+  maybeShowSeekHint() {
+    if (!shouldShowSeekHint(this.settings.seekHintsShown) || this.seekHint) return;
+    let anchor = this.pillAnchor ?? this.sessionView?.dom ?? document.body;
+    this.seekHint = createSeekHint(document, { onDone: () => this.seekHint = null }), anchor.appendChild(this.seekHint), this.settings.seekHintsShown += 1, this.saveSettings();
   }
   // Acceptance-only: the rendered container the current reading session aligned
   // against, so the harness can dispatch a real mousedown on it (check 21).

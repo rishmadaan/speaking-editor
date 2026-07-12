@@ -116,3 +116,56 @@
 .se-pill .se-pill-stop {
   color: var(--text-muted);
 }
+
+/* Preparing state (spec 0009 point 1): the play control breathes while the first
+   audio is synthesizing, and the ribbon icon (a lucide loader-2) pulses the same
+   way. Opacity is the ONLY animated property, per the calm rule: nothing moves. */
+
+@keyframes se-preparing-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.se-pill .se-pill-play-preparing {
+  animation: se-preparing-pulse 1.2s ease-in-out infinite;
+}
+
+.se-preparing-pulse {
+  animation: se-preparing-pulse 1.2s ease-in-out infinite;
+}
+
+/* The first-jump teaching hint (spec 0009 point 3). Anchored near the pill,
+   bottom-center of the editor, just above where the pill sits. Never blocks input
+   (pointer-events: none) and only opacity transitions (it fades in and out; it
+   never moves). Theme variables only. */
+
+.se-hint {
+  position: absolute;
+  bottom: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--layer-popover, 30);
+  max-width: 22em;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-s);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none; /* never blocks a click on the text underneath */
+  user-select: none;
+  opacity: 0;
+  transition: opacity 250ms ease;
+}
+
+.se-hint.se-hint-visible {
+  opacity: 1;
+}

@@ -16,7 +16,14 @@ import { Engine, EngineCallbacks, AudioLike } from "../playback/engine";
 import { buildWordEntries, WordEntry } from "./word-runs";
 import { HighlightSurface, CmSurface } from "./highlight-surface";
 
-export type SessionState = "idle" | "playing" | "paused" | "ended" | "error";
+// "preparing" is a shell-derived state (the vendored engine never emits it): a
+// playback request has been made (start / resume with an unloaded chunk / seek to
+// an unloaded chunk) but the first audio has not started yet. The session enters
+// it on the request and leaves it when the engine reports "playing" (audio
+// started), the user pauses ("pause during preparing -> paused"), synthesis fails
+// ("error"), or the note ends. A prime-paused construction rests at "paused", not
+// "preparing", because no play was requested.
+export type SessionState = "idle" | "preparing" | "playing" | "paused" | "ended" | "error";
 
 // The subset of the vendored DiskCache the session needs. Kept structural so a
 // DiskCache instance drops in without the session importing the disk module.
@@ -133,12 +140,16 @@ export class ReadingSession {
 
   playPause() {
     if (this.disposed) return;
-    if (this._state === "playing") {
+    // A press while playing OR while preparing pauses: preparing shows the pause
+    // affordance, so a press there cancels the pending start exactly like a pause
+    // (engine.pause() sets playing=false, so a chunk that arrives later loads and
+    // seeks but does not auto-play). No dead controls during the synthesis gap.
+    if (this._state === "playing" || this._state === "preparing") {
       this.engine.pause();
       return;
     }
     if (this._state === "paused") {
-      this.active = true;
+      this.enterPreparing();
       this.engine.resume();
       this.startLoop();
       return;
@@ -146,13 +157,13 @@ export class ReadingSession {
     if (this._state === "ended") {
       // replay: engine.start() no-ops on an already-loaded chunk (receiveChunk
       // ignores duplicates), so jump to the first word, which seeks and plays
-      this.active = true;
+      this.enterPreparing();
       this.engine.jumpToWord(0);
       this.startLoop();
       return;
     }
     // idle: start from the top
-    this.active = true;
+    this.enterPreparing();
     this.engine.start(0);
     this.startLoop();
   }
@@ -166,18 +177,27 @@ export class ReadingSession {
 
   seekToWord(wordIndex: number) {
     if (this.disposed) return;
-    this.active = true;
+    // A seek requests playback: enter "preparing". If the target chunk is already
+    // loaded the engine reports "playing" synchronously and overwrites it; if not,
+    // we hold "preparing" until the chunk arrives and starts.
+    this.enterPreparing();
     this.engine.jumpToWord(wordIndex);
     this.startLoop();
   }
 
   // Reading-mode click-to-seek: hand a viewport point to the surface, which maps
-  // it to the nearest aligned word, and seek there. A no-op on surfaces that do
-  // not hit-test (live preview does its own click handling on the editor).
-  seekReading(x: number, y: number) {
-    if (this.disposed) return;
+  // it to the nearest aligned word, and seek there. Returns true when a word was
+  // hit and a seek was issued, false on a miss (so the shell knows whether to show
+  // the first-jump hint). A no-op on surfaces that do not hit-test (live preview
+  // does its own click handling on the editor).
+  seekReading(x: number, y: number): boolean {
+    if (this.disposed) return false;
     const w = this.surface.hitTest?.(x, y);
-    if (w != null && w >= 0) this.seekToWord(w);
+    if (w != null && w >= 0) {
+      this.seekToWord(w);
+      return true;
+    }
+    return false;
   }
 
   // Apply a new playback rate to the live audio without a rebuild. The caller
@@ -268,6 +288,16 @@ export class ReadingSession {
   }
 
   // ─── Internals ────────────────────────────────────────────────────────────────
+
+  // Mark a playback request in flight: expose "preparing" now so the UI answers
+  // the press immediately (breathing pill / loader ribbon). The engine reports
+  // "playing" when audio actually starts, overwriting this; a synchronous start
+  // (already-loaded chunk) overwrites it within the same call, so no flicker.
+  private enterPreparing() {
+    this.active = true;
+    this._state = "preparing";
+    this.onStateCb("preparing");
+  }
 
   private loop = () => {
     this.engine.tick();

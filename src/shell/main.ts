@@ -16,7 +16,9 @@ import { RangeSurface } from "./range-surface";
 import { runAcceptance } from "./acceptance";
 import { SpeakingEditorSettings, mergeSettings, rememberVoice, voiceForProvider } from "./settings";
 import { KeyStore } from "./key-store";
-import { availableProviders, buildProvider } from "./providers";
+import { availableProviders, buildProvider, providerLabel } from "./providers";
+import { mapProviderError } from "./error-copy";
+import { shouldShowSeekHint, createSeekHint } from "./hint";
 import { VoiceCache } from "../engine/synthesis/voice-cache";
 import { DiskCache } from "../engine/synthesis/disk-cache";
 import { SpeakingEditorSettingTab } from "./settings-tab";
@@ -61,6 +63,9 @@ export default class SpeakingEditorPlugin extends Plugin {
   private boundDoms = new WeakSet<HTMLElement>();
   // Exactly one pill ever exists, tied to the active session's UI.
   private pill: PlayerPill | null = null;
+  // The first-jump teaching hint currently on screen, if any: while one is up we
+  // do not create a second (spec 0009 point 3). Cleared when it self-dismisses.
+  private seekHint: HTMLElement | null = null;
 
   // ONE disk cache for every session, built at load and rebuilt on a size change.
   private cache!: DiskCache;
@@ -307,7 +312,7 @@ export default class SpeakingEditorPlugin extends Plugin {
       speed: this.settings.speed,
       primeAtWord,
       cache: this.cache,
-      onState: (s) => this.onSessionState(s),
+      onState: (s, msg) => this.onSessionState(s, msg),
       onPositionSaved: (w) => this.onSessionPosition(w),
     });
   }
@@ -423,6 +428,9 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   private disposeSession() {
     this.destroyPill();
+    // Remove any lingering teaching hint with its session.
+    this.seekHint?.remove();
+    this.seekHint = null;
     this.session?.dispose();
     this.session = null;
     this.sessionView = null;
@@ -432,7 +440,7 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.updateRibbon("idle");
   }
 
-  private onSessionState(state: SessionState) {
+  private onSessionState(state: SessionState, message?: string) {
     this.updateRibbon(state);
     // A note that finished has nothing to resume: clear its saved position and
     // persist the clear now.
@@ -440,15 +448,58 @@ export default class SpeakingEditorPlugin extends Plugin {
       this.positions = clearPosition(this.positions, this.sessionUri);
       this.positionThrottle.flush();
     }
-    // The pill lives only while a session is live: a live state ensures it exists
-    // and reflects reality; a terminal state (stop -> idle, natural end, error)
-    // removes it. A later play on a still-alive session recreates a fresh pill.
-    if (state === "playing" || state === "paused") {
+    // A failure surfaces a human Notice with one way out (the raw error goes to
+    // console, never the user), then the pill retires like any terminal state.
+    if (state === "error") {
+      this.showSessionError(message);
+      this.destroyPill();
+      return;
+    }
+    // The pill lives only while a session is live: a live state (preparing while
+    // the first audio synthesizes, playing, paused) ensures it exists and reflects
+    // reality; a terminal state (stop -> idle, natural end, error) removes it. A
+    // later play on a still-alive session recreates a fresh pill.
+    if (state === "playing" || state === "paused" || state === "preparing") {
       this.ensurePill();
       this.pill?.setState(state);
+      this.pill?.setPreparing(state === "preparing");
     } else {
       this.destroyPill();
     }
+  }
+
+  // Build the persistent error Notice (spec 0009 point 2): a plain sentence naming
+  // the provider that failed, plus exactly one action. On macOS with a non-say
+  // provider the action switches to the offline voice and restarts reading from
+  // the current position (the reconfigure machinery); otherwise it opens settings.
+  // The raw exception goes to the console for debuggability, never to the user.
+  private showSessionError(rawMessage?: string): Notice {
+    if (rawMessage) console.error("[Speaking Editor] synthesis failed:", rawMessage);
+    const providerId = this.settings.providerId;
+    const copy = mapProviderError(providerId, providerLabel(providerId), process.platform, rawMessage);
+
+    const frag = document.createDocumentFragment();
+    const line = frag.appendChild(document.createElement("div"));
+    line.textContent = copy.sentence;
+    const btn = frag.appendChild(document.createElement("button"));
+    btn.type = "button";
+    btn.className = "se-error-action";
+    btn.textContent = copy.action === "offline-fallback" ? "Switch to the offline voice" : "Open settings";
+
+    // timeout 0 keeps it up until the user acts or dismisses it.
+    const notice = new Notice(frag, 0);
+    btn.addEventListener("click", () => {
+      notice.hide();
+      if (copy.action === "offline-fallback") {
+        // Switch to the offline "say" voice, which reconfigures the active session
+        // primed PAUSED at the current word, then resume so reading continues from
+        // exactly where it failed.
+        void this.applyProvider("say").then(() => this.session?.playPause());
+      } else {
+        this.openSettingsTab();
+      }
+    });
+    return notice;
   }
 
   // ─── Pill lifecycle ──────────────────────────────────────────────────────────
@@ -547,8 +598,18 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   private updateRibbon(state: SessionState) {
     if (!this.ribbonEl) return;
-    const icon = state === "playing" ? "pause" : state === "paused" ? "play" : "play-circle";
+    // Preparing shows a loader glyph that pulses (opacity-only, via the class);
+    // every other state clears the pulse and shows its normal glyph.
+    const preparing = state === "preparing";
+    const icon = preparing
+      ? "loader-2"
+      : state === "playing"
+      ? "pause"
+      : state === "paused"
+      ? "play"
+      : "play-circle";
     setIcon(this.ribbonEl, icon);
+    this.ribbonEl.classList.toggle("se-preparing-pulse", preparing);
   }
 
   // ─── Acceptance helpers (dev-only, used by the harness) ───────────────────────
@@ -574,6 +635,13 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   acceptanceSession(): ReadingSession | null {
     return this.session;
+  }
+
+  // Drive the real error-Notice path from a harness session's onState("error"),
+  // so check 24 can assert the user sees the mapped sentence and an action button,
+  // never the raw exception. Returns the Notice so the check can dismiss it.
+  acceptanceShowSessionError(message?: string): Notice {
+    return this.showSessionError(message);
   }
 
   acceptanceDisposeSession() {
@@ -614,7 +682,10 @@ export default class SpeakingEditorPlugin extends Plugin {
     const w =
       words.find((e) => e.runs.some((r) => pos >= r.from && pos < r.to)) ??
       words.find((e) => e.runs.length > 0 && e.runs[0].from >= pos);
-    if (w) this.session.seekToWord(w.index);
+    if (w) {
+      this.session.seekToWord(w.index);
+      this.maybeShowSeekHint();
+    }
   }
 
   // Reading-mode click-to-seek: bound to the rendered container (bubbling), gated
@@ -631,7 +702,24 @@ export default class SpeakingEditorPlugin extends Plugin {
     if (!this.session || this.sessionMode !== "reading") return;
     if (this.sessionReadingContainer !== container) return; // stale binding from a prior session
     if (!this.settings.listeningMode) return;
-    this.session.seekReading(evt.clientX, evt.clientY);
+    // seekReading returns true only when a rendered word was actually hit, so a
+    // miss (click on whitespace) does not teach.
+    if (this.session.seekReading(evt.clientX, evt.clientY)) this.maybeShowSeekHint();
+  }
+
+  // Show the first-jump teaching hint on a real seek, the first few times only.
+  // Gated on the persisted counter ALONE (not acceptanceRunning): the hint is a
+  // passive, self-dismissing overlay, so it is allowed to fire during the harness,
+  // which is exactly what the seek-hint acceptance check exercises. A hint already
+  // on screen is not re-created; each shown hint increments and persists the count.
+  private maybeShowSeekHint() {
+    if (!shouldShowSeekHint(this.settings.seekHintsShown)) return;
+    if (this.seekHint) return; // one at a time
+    const anchor = this.pillAnchor ?? this.sessionView?.dom ?? document.body;
+    this.seekHint = createSeekHint(document, { onDone: () => (this.seekHint = null) });
+    anchor.appendChild(this.seekHint);
+    this.settings.seekHintsShown += 1;
+    void this.saveSettings();
   }
 
   // Acceptance-only: the rendered container the current reading session aligned

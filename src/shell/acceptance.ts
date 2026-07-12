@@ -17,6 +17,8 @@ import { DiskCache } from "../engine/synthesis/disk-cache";
 import { EdgeProvider } from "../engine/synthesis/edge";
 import { ChunkAudio, TtsProvider, VoiceInfo } from "../engine/synthesis/provider";
 import { Chunk } from "../engine/core";
+import { mapProviderError } from "./error-copy";
+import { providerLabel } from "./providers";
 import type SpeakingEditorPlugin from "./main";
 
 // A pass-through TTS provider that counts synthesize (network) calls, so check
@@ -781,6 +783,126 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       /* best-effort cleanup */
     }
 
+    // ─── UX P1 checks (spec 0009) ────────────────────────────────────────────
+    // Back to live preview (source) for a clean CM editor: the preparing pill and
+    // the seek-hint click path both exercise the editor surface, not the preview.
+    await (mdView as any).setState(
+      { ...(mdView as any).getState(), mode: "source", source: false },
+      { history: false }
+    );
+    await sleep(200);
+
+    // 23. Immediately after play on a note, the session reports "preparing" and
+    //     the pill carries the preparing class (a play request emits "preparing"
+    //     synchronously, before any audio); when "playing" arrives both clear.
+    plugin.acceptanceClearPosition(NOTE); // a clean start from the top
+    plugin.acceptanceStartSession(cm, NOTE); // startSession issues playPause synchronously
+    const preparingState23 = plugin.acceptanceSession()?.state === "preparing";
+    const pillPreparing23 =
+      !!document.querySelector(".se-pill-preparing") ||
+      !!document.querySelector(".se-pill-play-preparing");
+    const cleared23 = await waitUntil(
+      () =>
+        plugin.acceptanceSession()?.state === "playing" &&
+        !document.querySelector(".se-pill-preparing") &&
+        !document.querySelector(".se-pill-play-preparing"),
+      10000
+    );
+    check(
+      "play reports preparing with a breathing pill; both clear when playing arrives",
+      preparingState23 && pillPreparing23 && cleared23,
+      `preparing=${preparingState23}, pillPreparing=${pillPreparing23}, clearedOnPlaying=${cleared23}, state=${plugin.acceptanceSession()?.state}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // 24. A provider failure surfaces a human notice (the mapped sentence plus an
+    //     action button), never the raw exception. Drive a harness session with a
+    //     stub provider that rejects, wired to the real plugin error-notice path.
+    const failingProvider: TtsProvider = {
+      id: "edge",
+      label: "Edge TTS",
+      requiresKey: false,
+      timingQuality: "exact",
+      maxCharsPerRequest: 6000,
+      defaultVoice: "en-US-AriaNeural",
+      listVoices: () => Promise.resolve([]),
+      synthesize: () => Promise.reject(new Error("ECONNRESET fake")),
+    };
+    const expected24 = mapProviderError(
+      plugin.settings.providerId,
+      providerLabel(plugin.settings.providerId),
+      process.platform,
+      "ECONNRESET fake"
+    ).sentence;
+    let errorNotice: Notice | null = null;
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      provider: failingProvider,
+      onState: (s, msg) => {
+        if (s === "error") errorNotice = plugin.acceptanceShowSessionError(msg);
+      },
+    });
+    session.playPause();
+    const noticeShown24 = await waitUntil(
+      () =>
+        Array.from(document.querySelectorAll(".notice")).some((n) =>
+          (n.textContent ?? "").includes(expected24)
+        ),
+      10000
+    );
+    const noticeEls24 = Array.from(document.querySelectorAll(".notice"));
+    const noticeText24 = noticeEls24.map((n) => n.textContent ?? "").join(" | ");
+    const hasSentence24 = noticeText24.includes(expected24);
+    const hasAction24 = noticeEls24.some((n) => !!n.querySelector("button"));
+    const noRawError24 = !noticeText24.includes("ECONNRESET");
+    check(
+      "a provider failure shows a human notice with an action, never the raw exception",
+      noticeShown24 && hasSentence24 && hasAction24 && noRawError24,
+      `expected="${expected24}", shown=${noticeShown24}, sentence=${hasSentence24}, action=${hasAction24}, noRaw=${noRawError24}`
+    );
+    (errorNotice as Notice | null)?.hide();
+    session.dispose();
+    session = null;
+
+    // 25. The first-jump hint: with the counter at 0 a real seek shows it; with
+    //     the counter at 3 the same seek shows none. Driven through the real
+    //     click-to-seek path (the hint gates on the counter alone, so it fires for
+    //     the harness's synthetic seeks exactly as this check needs).
+    plugin.acceptanceClearPosition(NOTE);
+    plugin.settings.listeningMode = true;
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started25 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      10000
+    );
+    // pause so the seek target stays put under the click assertions
+    plugin.acceptanceSession()?.playPause();
+    await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 2000);
+    const clickable25 = field().words.filter((e) => e.runs.length > 0);
+    const target25a = clickable25[Math.min(clickable25.length - 1, 20)];
+    const target25b = clickable25[Math.min(clickable25.length - 1, 10)];
+
+    // counter 0 -> the seek teaches
+    document.querySelectorAll(".se-hint").forEach((e) => e.remove());
+    plugin.settings.seekHintsShown = 0;
+    const clicked25a = await clickWord(target25a);
+    const hintShown25 = await waitUntil(() => !!document.querySelector(".se-hint"), 1500);
+
+    // counter 3 -> the same seek teaches nothing
+    document.querySelectorAll(".se-hint").forEach((e) => e.remove());
+    plugin.settings.seekHintsShown = 3;
+    const clicked25b = await clickWord(target25b);
+    const hintSuppressed25 = !(await waitUntil(() => !!document.querySelector(".se-hint"), 900));
+    check(
+      "the first-jump hint shows at counter 0 and is suppressed at counter 3",
+      started25 && clicked25a && hintShown25 && clicked25b && hintSuppressed25,
+      `shownAt0=${hintShown25}, suppressedAt3=${hintSuppressed25}, counterAfterFirst=${plugin.settings.seekHintsShown}`
+    );
+    plugin.acceptanceDisposeSession();
+    document.querySelectorAll(".se-hint").forEach((e) => e.remove());
+
     if (hiddenMidRun()) {
       lines.splice(2, 0, `RESULT: ABORTED MID-RUN`, ``, `The window went hidden during the control-surface checks; rAF-driven`, `measurements are invalid. Keep the window visible and rerun.`);
       await write();
@@ -817,6 +939,7 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       plugin.settings.voiceByProvider = snap.voiceByProvider;
       plugin.settings.speed = snap.speed;
       plugin.settings.listeningMode = snap.listeningMode;
+      plugin.settings.seekHintsShown = snap.seekHintsShown;
       plugin.acceptanceRestorePositions(positionsSnapshot);
       await plugin.saveSettings();
     } catch {

@@ -10,6 +10,10 @@ export interface SpeakingEditorSettings {
   listeningMode: boolean;
   // Disk-cache size cap in megabytes. One of CACHE_SIZE_CHOICES.
   cacheSizeMb: number;
+  // How many times the first-jump teaching hint has shown. Counts up to 3 then
+  // stops forever (see hint.ts). Persisted so the lesson is not re-taught across
+  // restarts; resetting is deliberately not surfaced in the UI.
+  seekHintsShown: number;
 }
 
 // The offered "Audio cache size" choices, in MB; 200 is the default.
@@ -21,6 +25,7 @@ export const DEFAULT_SETTINGS: SpeakingEditorSettings = {
   speed: 1.0,
   listeningMode: true,
   cacheSizeMb: 200,
+  seekHintsShown: 0,
 };
 
 // NOTE ON DATA.JSON SHAPE: the persisted payload is the settings object's fields
@@ -46,6 +51,12 @@ export function mergeSettings(saved: unknown): SpeakingEditorSettings {
     cacheSizeMb: (CACHE_SIZE_CHOICES as readonly number[]).includes(s.cacheSizeMb as number)
       ? (s.cacheSizeMb as number)
       : DEFAULT_SETTINGS.cacheSizeMb,
+    // A non-negative integer, else 0. Clamps a stray/negative payload so the gate
+    // stays sane; old payloads without the field default to 0 (hint still teaches).
+    seekHintsShown:
+      typeof s.seekHintsShown === "number" && Number.isFinite(s.seekHintsShown) && s.seekHintsShown >= 0
+        ? Math.floor(s.seekHintsShown)
+        : DEFAULT_SETTINGS.seekHintsShown,
   };
 }
 

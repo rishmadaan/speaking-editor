@@ -147,6 +147,24 @@ describe("PlayerPill DOM", () => {
     expect(play.dataset.icon).toBe("play");
     pill.setState("idle");
     expect(play.dataset.icon).toBe("play");
+    // preparing keeps the pause glyph: a press during the gap pauses/cancels
+    pill.setState("preparing");
+    expect(play.dataset.icon).toBe("pause");
+  });
+
+  it("setPreparing toggles the pulse class on the play control and marks the root", () => {
+    const pill = new PlayerPill(noopCallbacks());
+    pill.mount(container);
+    const root = container.querySelector(".se-pill") as HTMLElement;
+    const play = container.querySelector(".se-pill-play") as HTMLElement;
+    expect(play.classList.contains("se-pill-play-preparing")).toBe(false);
+    expect(root.classList.contains("se-pill-preparing")).toBe(false);
+    pill.setPreparing(true);
+    expect(play.classList.contains("se-pill-play-preparing")).toBe(true);
+    expect(root.classList.contains("se-pill-preparing")).toBe(true);
+    pill.setPreparing(false);
+    expect(play.classList.contains("se-pill-play-preparing")).toBe(false);
+    expect(root.classList.contains("se-pill-preparing")).toBe(false);
   });
 
   it("setSpeed renders the current rate", () => {
