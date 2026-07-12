@@ -5,12 +5,38 @@
 // Every failure path still writes the report, so a run is never silently lost.
 import { App, MarkdownView, TFile } from "obsidian";
 import { EditorView } from "@codemirror/view";
+import { mkdtempSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { syncField } from "./sync-field";
 import { ReadingSession } from "./session";
 import { WordEntry } from "./word-runs";
 import { SPEED_PRESETS } from "./player-pill";
 import { formatSpeedTitle } from "./pill-menus";
+import { DiskCache } from "../engine/synthesis/disk-cache";
+import { EdgeProvider } from "../engine/synthesis/edge";
+import { ChunkAudio, TtsProvider, VoiceInfo } from "../engine/synthesis/provider";
+import { Chunk } from "../engine/core";
 import type SpeakingEditorPlugin from "./main";
+
+// A pass-through TTS provider that counts synthesize (network) calls, so check
+// 18 can prove a cached replay hits zero of them. Delegates identity to the
+// wrapped provider so cache keys match across runs.
+class CountingProvider implements TtsProvider {
+  synthCount = 0;
+  constructor(private inner: TtsProvider) {}
+  get id() { return this.inner.id; }
+  get label() { return this.inner.label; }
+  get requiresKey() { return this.inner.requiresKey; }
+  get timingQuality() { return this.inner.timingQuality; }
+  get maxCharsPerRequest() { return this.inner.maxCharsPerRequest; }
+  get defaultVoice() { return this.inner.defaultVoice; }
+  listVoices(): Promise<VoiceInfo[]> { return this.inner.listVoices(); }
+  synthesize(chunk: Chunk, voice: string, signal: AbortSignal): Promise<ChunkAudio> {
+    this.synthCount++;
+    return this.inner.synthesize(chunk, voice, signal);
+  }
+}
 
 const REPORT = "skeleton-acceptance.md";
 const NOTE = "Skeleton Note.md";
@@ -596,6 +622,110 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       "clicking the voice control opens the provider+voice menu; a voice pick lands paused-primed and updates the label",
       started17 && menuUp17 && hasProvider17 && hasVoices17 && !!targetVoice17 && primedPaused17 && labelUpdated17 && closed17,
       `providers=${providerItems17.length}, voices=${voiceItems17.length}, picked="${targetLabel17}", state=${plugin.acceptanceSession()?.state}, label="${(document.querySelector(".se-pill-voice") as HTMLElement | null)?.textContent}", closed=${closed17}`
+    );
+    plugin.acceptanceDisposeSession();
+
+    // ─── Disk cache and resume checks (spec 0006) ────────────────────────────
+    // Give the cache its OWN throwaway directory under the system temp dir, never
+    // the real per-device cache location, so the run is deterministic and leaves
+    // no trace outside a scratch folder.
+    const harnessCacheDir = mkdtempSync(join(tmpdir(), "se-acceptance-cache-"));
+    const sharedCache = new DiskCache(harnessCacheDir, 200 * 1024 * 1024);
+    const edge = new EdgeProvider();
+
+    // 18. Playing the fixture twice with the same voice hits the disk cache on the
+    //     second run: run one caches the opening chunks, run two reaches "playing"
+    //     with its first chunk served from disk and zero provider synthesize calls.
+    const counting1 = new CountingProvider(edge);
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      provider: counting1,
+      cache: sharedCache,
+      onState: (s) => { lastState = s; },
+    });
+    session.playPause();
+    const played18a = await waitUntil(() => session!.state === "playing" && field().word >= 0, 12000);
+    // Let the opening window (first chunk + its two prefetched neighbours) both
+    // synthesize AND finish writing to the cache before we tear the session down.
+    const cached18 = await waitUntil(() => counting1.synthCount >= 3, 15000);
+    await sleep(1200); // the service awaits cache.set() before resolving; give it room
+    const firstRunCalls = counting1.synthCount;
+    session.dispose();
+    session = null;
+
+    const counting2 = new CountingProvider(edge);
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      provider: counting2,
+      cache: sharedCache,
+      onState: (s) => { lastState = s; },
+    });
+    session.playPause();
+    const played18b = await waitUntil(() => session!.state === "playing" && field().word >= 0, 12000);
+    // Reaching "playing" only needs the first chunk; with the opening window all
+    // cached, the second run made no synthesize calls to get there.
+    const secondRunFree = counting2.synthCount === 0;
+    check(
+      "second play of the same note+voice serves its first chunk from disk cache (zero synth calls)",
+      played18a && cached18 && played18b && secondRunFree,
+      `run1 synthCalls=${firstRunCalls} (cached), run2 synthCalls=${counting2.synthCount} (0 expected), cacheDir=${harnessCacheDir}`
+    );
+    session.dispose();
+    session = null;
+
+    // 19. Stop mid-note then play again resumes at the sentence containing the
+    //     stopped word; "Read this note from the top" then starts at word 0. Driven
+    //     through the real plugin paths so the position store + resume are exercised.
+    plugin.acceptanceDisposeSession();
+    plugin.acceptanceClearPosition(NOTE); // start from a known-empty position
+    plugin.acceptanceStartSession(cm, NOTE);
+    const started19 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      8000
+    );
+    // Let the reading advance past the first sentence so "the stopped sentence"
+    // is a genuine mid-note sentence, not sentence 0.
+    const advanced19 = await waitUntil(() => field().sentence >= 1 && field().word >= 1, 12000);
+    const stoppedWord = field().word;
+    const stoppedSentence = field().sentence;
+    plugin.acceptanceStopSession(); // records + persists the position for NOTE
+    await waitUntil(() => plugin.acceptanceSession()?.state === "idle", 2000);
+
+    // Play again -> resume at the sentence start of the stopped sentence.
+    plugin.acceptanceStartSession(cm, NOTE);
+    const resumedPlaying19 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      8000
+    );
+    const resumeSentenceWords = field()
+      .words.filter((e) => e.sentence === stoppedSentence && e.runs.length > 0)
+      .map((e) => e.index);
+    const sentenceStartWord = resumeSentenceWords.length ? Math.min(...resumeSentenceWords) : stoppedWord;
+    const resumedAtSentence = await waitUntil(
+      () =>
+        field().sentence === stoppedSentence &&
+        (field().word === sentenceStartWord || field().word === sentenceStartWord + 1),
+      4000
+    );
+    const resumedWord = field().word;
+    const resumedSentence = field().sentence;
+
+    // "Read from the top" resets to word 0 and clears the saved position.
+    plugin.acceptanceReadFromTop(cm, NOTE);
+    const fromTop19 = await waitUntil(
+      () =>
+        plugin.acceptanceSession()?.state === "playing" &&
+        (field().word === 0 || field().word === 1),
+      8000
+    );
+    check(
+      "stop mid-note resumes at the stopped sentence; read-from-top restarts at word 0",
+      started19 && advanced19 && resumedPlaying19 && resumedAtSentence && fromTop19,
+      `stopped at word ${stoppedWord} (sentence ${stoppedSentence}); resumed at word ${resumedWord} (sentence ${resumedSentence}, start ${sentenceStartWord}); from-top word=${field().word}`
     );
     plugin.acceptanceDisposeSession();
 

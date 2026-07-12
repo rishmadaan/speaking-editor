@@ -9642,7 +9642,7 @@ var require_populate = __commonJS({
 var require_form_data = __commonJS({
   "node_modules/form-data/lib/form_data.js"(exports2, module2) {
     "use strict";
-    var CombinedStream = require_combined_stream(), util = require("util"), path = require("path"), http = require("http"), https = require("https"), parseUrl = require("url").parse, fs3 = require("fs"), Stream = require("stream").Stream, crypto2 = require("crypto"), mime = require_mime_types(), asynckit = require_asynckit(), setToStringTag = require_es_set_tostringtag(), hasOwn = require_hasown(), populate = require_populate();
+    var CombinedStream = require_combined_stream(), util = require("util"), path = require("path"), http = require("http"), https = require("https"), parseUrl = require("url").parse, fs4 = require("fs"), Stream = require("stream").Stream, crypto2 = require("crypto"), mime = require_mime_types(), asynckit = require_asynckit(), setToStringTag = require_es_set_tostringtag(), hasOwn = require_hasown(), populate = require_populate();
     function escapeHeaderParam(str) {
       return String(str).replace(/\r/g, "%0D").replace(/\n/g, "%0A").replace(/"/g, "%22");
     }
@@ -9672,7 +9672,7 @@ var require_form_data = __commonJS({
       options.knownLength != null ? valueLength += Number(options.knownLength) : Buffer.isBuffer(value) ? valueLength = value.length : typeof value == "string" && (valueLength = Buffer.byteLength(value)), this._valueLength += valueLength, this._overheadLength += Buffer.byteLength(header) + FormData2.LINE_BREAK.length, !(!value || !value.path && !(value.readable && hasOwn(value, "httpVersion")) && !(value instanceof Stream)) && (options.knownLength || this._valuesToMeasure.push(value));
     };
     FormData2.prototype._lengthRetriever = function(value, callback) {
-      hasOwn(value, "fd") ? value.end != null && value.end != 1 / 0 && value.start != null ? callback(null, value.end + 1 - (value.start ? value.start : 0)) : fs3.stat(value.path, function(err, stat) {
+      hasOwn(value, "fd") ? value.end != null && value.end != 1 / 0 && value.start != null ? callback(null, value.end + 1 - (value.start ? value.start : 0)) : fs4.stat(value.path, function(err, stat) {
         if (err) {
           callback(err);
           return;
@@ -17719,7 +17719,7 @@ var require_MsEdgeTTS = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: !0 });
     exports2.MsEdgeTTS = exports2.MetadataOptions = void 0;
-    var axios_1 = __importDefault(require_axios()), isomorphic_ws_1 = __importDefault(require_node2()), index_1 = require_buffer(), Output_1 = require_Output(), stream_1 = require("stream"), fs3 = __importStar(require("fs")), Prosody_1 = require_Prosody(), utils_1 = require_utils(), MetadataOptions = class {
+    var axios_1 = __importDefault(require_axios()), isomorphic_ws_1 = __importDefault(require_node2()), index_1 = require_buffer(), Output_1 = require_Output(), stream_1 = require("stream"), fs4 = __importStar(require("fs")), Prosody_1 = require_Prosody(), utils_1 = require_utils(), MetadataOptions = class {
       /**
        * (optional) any voice locale that is supported by the voice. See the list of all voices for compatibility. If not provided, the locale will be inferred from the `voiceName`.
        * Changing the voiceName will reset the voiceLocale.
@@ -17945,11 +17945,11 @@ Path:${messageTypes.SPEECH_CONFIG}${_MsEdgeTTS.JSON_XML_DELIM}
         try {
           return await Promise.all([
             new Promise((resolve, reject) => {
-              let writableAudioFile = audioStream.pipe(fs3.createWriteStream(audioFilePath));
+              let writableAudioFile = audioStream.pipe(fs4.createWriteStream(audioFilePath));
               audioStream.once("error", (e) => {
                 writableAudioFile.destroy(), reject(e);
               }), writableAudioFile.once("close", async () => {
-                writableAudioFile.bytesWritten > 0 ? resolve(audioFilePath) : (reject(new Error("No audio data received")), fs3.unlinkSync(audioFilePath));
+                writableAudioFile.bytesWritten > 0 ? resolve(audioFilePath) : (reject(new Error("No audio data received")), fs4.unlinkSync(audioFilePath));
               }), writableAudioFile.once("error", reject);
             }),
             new Promise((resolve, reject) => {
@@ -17960,7 +17960,7 @@ Path:${messageTypes.SPEECH_CONFIG}${_MsEdgeTTS.JSON_XML_DELIM}
                 let chunkObj = JSON.parse(chunk.toString());
                 metadataItems.Metadata.push(...chunkObj.Metadata);
               }), metadataStream.once("close", () => {
-                metadataItems.Metadata.length > 0 ? (fs3.writeFileSync(metadataFilePath, JSON.stringify(metadataItems, null, 2)), resolve(metadataFilePath)) : (reject(new Error("No metadata received")), fs3.unlinkSync(metadataFilePath));
+                metadataItems.Metadata.length > 0 ? (fs4.writeFileSync(metadataFilePath, JSON.stringify(metadataItems, null, 2)), resolve(metadataFilePath)) : (reject(new Error("No metadata received")), fs4.unlinkSync(metadataFilePath));
               }), metadataStream.once("error", reject);
             })
           ]), { audioFilePath, metadataFilePath, requestId };
@@ -18029,7 +18029,7 @@ __export(main_exports, {
   default: () => SpeakingEditorPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian2 = require("obsidian"), import_view4 = require("@codemirror/view");
+var import_obsidian2 = require("obsidian"), import_view4 = require("@codemirror/view"), import_fs4 = require("fs"), import_os3 = require("os"), import_path5 = require("path");
 
 // src/shell/sync-field.ts
 var import_state = require("@codemirror/state"), import_view = require("@codemirror/view"), setWords = import_state.StateEffect.define(), setPosition = import_state.StateEffect.define(), clearAll = import_state.StateEffect.define();
@@ -18740,6 +18740,10 @@ var ReadingSession = class {
   engine;
   view;
   onStateCb;
+  onPositionSaved;
+  // The last sentence we reported a position for, so we notify the shell only on
+  // a genuine sentence change, not on every word advance.
+  lastReportedSentence = -1;
   rafId = null;
   _state = "idle";
   active = !1;
@@ -18749,9 +18753,9 @@ var ReadingSession = class {
   // acceptance harness can observe the live playbackRate (check 8).
   createdAudios = [];
   constructor(opts) {
-    this.view = opts.view, this.onStateCb = opts.onState, this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = buildChunks(this.model), this.entries = buildWordEntries(this.model, opts.docText);
+    this.view = opts.view, this.onStateCb = opts.onState, this.onPositionSaved = opts.onPositionSaved, this.model = parseDocument(opts.docText, opts.uri, 1), this.chunks = buildChunks(this.model), this.entries = buildWordEntries(this.model, opts.docText);
     let provider = opts.provider ?? new EdgeProvider(), voice = opts.voice ?? provider.defaultVoice;
-    this.synthesis = new SynthesisService(provider, voice);
+    this.synthesis = new SynthesisService(provider, voice, opts.cache);
     let cb = {
       requestChunk: (i, priority) => this.requestChunk(i, priority),
       onPosition: (word, sentence) => this.onPosition(word, sentence),
@@ -18819,6 +18823,7 @@ var ReadingSession = class {
     });
   }
   onPosition(word, sentence) {
+    sentence !== this.lastReportedSentence && (this.lastReportedSentence = sentence, this.onPositionSaved?.(word));
     let effects = [setPosition.of({ word, sentence })], first = (this.view.state.field(syncField, !1)?.words ?? this.entries).find((e) => e.sentence === sentence && e.runs.length > 0 && !e.dirty);
     if (first) {
       let pos = first.runs[0].from;
@@ -18855,7 +18860,7 @@ var ReadingSession = class {
 };
 
 // src/shell/acceptance.ts
-var import_view3 = require("@codemirror/view");
+var import_view3 = require("@codemirror/view"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path");
 
 // src/shell/player-pill.ts
 var SPEED_PRESETS = [0.8, 1, 1.2, 1.5, 2, 2.5, 3];
@@ -19002,7 +19007,37 @@ async function openVoiceMenu(deps) {
 }
 
 // src/shell/acceptance.ts
-var REPORT = "skeleton-acceptance.md", NOTE = "Skeleton Note.md", FIXTURE = `---
+var CountingProvider = class {
+  constructor(inner) {
+    this.inner = inner;
+  }
+  inner;
+  synthCount = 0;
+  get id() {
+    return this.inner.id;
+  }
+  get label() {
+    return this.inner.label;
+  }
+  get requiresKey() {
+    return this.inner.requiresKey;
+  }
+  get timingQuality() {
+    return this.inner.timingQuality;
+  }
+  get maxCharsPerRequest() {
+    return this.inner.maxCharsPerRequest;
+  }
+  get defaultVoice() {
+    return this.inner.defaultVoice;
+  }
+  listVoices() {
+    return this.inner.listVoices();
+  }
+  synthesize(chunk, voice, signal) {
+    return this.synthCount++, this.inner.synthesize(chunk, voice, signal);
+  }
+}, REPORT = "skeleton-acceptance.md", NOTE = "Skeleton Note.md", FIXTURE = `---
 title: Skeleton fixture
 ---
 
@@ -19338,10 +19373,64 @@ ARMED: waiting for the window to become visible (10 minute limit)...
       () => (document.querySelector(".se-pill-voice")?.textContent ?? "") === targetLabel17,
       2e3
     ), closed17 = await waitUntil(() => menuEl() === null, 1500);
-    if (check(
+    check(
       "clicking the voice control opens the provider+voice menu; a voice pick lands paused-primed and updates the label",
       started17 && menuUp17 && hasProvider17 && hasVoices17 && !!targetVoice17 && primedPaused17 && labelUpdated17 && closed17,
       `providers=${providerItems17.length}, voices=${voiceItems17.length}, picked="${targetLabel17}", state=${plugin.acceptanceSession()?.state}, label="${document.querySelector(".se-pill-voice")?.textContent}", closed=${closed17}`
+    ), plugin.acceptanceDisposeSession();
+    let harnessCacheDir = (0, import_fs2.mkdtempSync)((0, import_path2.join)((0, import_os.tmpdir)(), "se-acceptance-cache-")), sharedCache = new DiskCache(harnessCacheDir, 200 * 1024 * 1024), edge = new EdgeProvider(), counting1 = new CountingProvider(edge);
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      provider: counting1,
+      cache: sharedCache,
+      onState: (s) => {
+        lastState = s;
+      }
+    }), session.playPause();
+    let played18a = await waitUntil(() => session.state === "playing" && field().word >= 0, 12e3), cached18 = await waitUntil(() => counting1.synthCount >= 3, 15e3);
+    await sleep(1200);
+    let firstRunCalls = counting1.synthCount;
+    session.dispose(), session = null;
+    let counting2 = new CountingProvider(edge);
+    session = new ReadingSession({
+      docText: cm.state.doc.toString(),
+      uri: NOTE,
+      view: cm,
+      provider: counting2,
+      cache: sharedCache,
+      onState: (s) => {
+        lastState = s;
+      }
+    }), session.playPause();
+    let played18b = await waitUntil(() => session.state === "playing" && field().word >= 0, 12e3), secondRunFree = counting2.synthCount === 0;
+    check(
+      "second play of the same note+voice serves its first chunk from disk cache (zero synth calls)",
+      played18a && cached18 && played18b && secondRunFree,
+      `run1 synthCalls=${firstRunCalls} (cached), run2 synthCalls=${counting2.synthCount} (0 expected), cacheDir=${harnessCacheDir}`
+    ), session.dispose(), session = null, plugin.acceptanceDisposeSession(), plugin.acceptanceClearPosition(NOTE), plugin.acceptanceStartSession(cm, NOTE);
+    let started19 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      8e3
+    ), advanced19 = await waitUntil(() => field().sentence >= 1 && field().word >= 1, 12e3), stoppedWord = field().word, stoppedSentence = field().sentence;
+    plugin.acceptanceStopSession(), await waitUntil(() => plugin.acceptanceSession()?.state === "idle", 2e3), plugin.acceptanceStartSession(cm, NOTE);
+    let resumedPlaying19 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
+      8e3
+    ), resumeSentenceWords = field().words.filter((e) => e.sentence === stoppedSentence && e.runs.length > 0).map((e) => e.index), sentenceStartWord = resumeSentenceWords.length ? Math.min(...resumeSentenceWords) : stoppedWord, resumedAtSentence = await waitUntil(
+      () => field().sentence === stoppedSentence && (field().word === sentenceStartWord || field().word === sentenceStartWord + 1),
+      4e3
+    ), resumedWord = field().word, resumedSentence = field().sentence;
+    plugin.acceptanceReadFromTop(cm, NOTE);
+    let fromTop19 = await waitUntil(
+      () => plugin.acceptanceSession()?.state === "playing" && (field().word === 0 || field().word === 1),
+      8e3
+    );
+    if (check(
+      "stop mid-note resumes at the stopped sentence; read-from-top restarts at word 0",
+      started19 && advanced19 && resumedPlaying19 && resumedAtSentence && fromTop19,
+      `stopped at word ${stoppedWord} (sentence ${stoppedSentence}); resumed at word ${resumedWord} (sentence ${resumedSentence}, start ${sentenceStartWord}); from-top word=${field().word}`
     ), plugin.acceptanceDisposeSession(), hiddenMidRun()) {
       lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
       return;
@@ -19370,11 +19459,12 @@ ARMED: waiting for the window to become visible (10 minute limit)...
 }
 
 // src/shell/settings.ts
-var DEFAULT_SETTINGS = {
+var CACHE_SIZE_CHOICES = [50, 200, 500, 1e3], DEFAULT_SETTINGS = {
   providerId: "edge",
   voiceByProvider: {},
   speed: 1,
-  listeningMode: !0
+  listeningMode: !0,
+  cacheSizeMb: 200
 };
 function mergeSettings(saved) {
   let s = saved ?? {};
@@ -19382,7 +19472,8 @@ function mergeSettings(saved) {
     providerId: typeof s.providerId == "string" ? s.providerId : DEFAULT_SETTINGS.providerId,
     voiceByProvider: s.voiceByProvider && typeof s.voiceByProvider == "object" ? { ...s.voiceByProvider } : {},
     speed: typeof s.speed == "number" ? s.speed : DEFAULT_SETTINGS.speed,
-    listeningMode: typeof s.listeningMode == "boolean" ? s.listeningMode : DEFAULT_SETTINGS.listeningMode
+    listeningMode: typeof s.listeningMode == "boolean" ? s.listeningMode : DEFAULT_SETTINGS.listeningMode,
+    cacheSizeMb: CACHE_SIZE_CHOICES.includes(s.cacheSizeMb) ? s.cacheSizeMb : DEFAULT_SETTINGS.cacheSizeMb
   };
 }
 function voiceForProvider(settings, providerId, providerDefaultVoice) {
@@ -19419,7 +19510,7 @@ var KeyStore = class {
 };
 
 // src/engine/synthesis/say.ts
-var import_child_process = require("child_process"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path"), import_util = require("util");
+var import_child_process = require("child_process"), import_fs3 = require("fs"), import_os2 = require("os"), import_path3 = require("path"), import_util = require("util");
 var run = (0, import_util.promisify)(import_child_process.execFile), NOVELTY_VOICES = /* @__PURE__ */ new Set([
   "Bad News",
   "Bahh",
@@ -19469,15 +19560,15 @@ var SayProvider = class {
     }
   }
   async synthesize(chunk, voice, signal) {
-    let out = (0, import_path2.join)((0, import_os.tmpdir)(), `talktomebaby-say-${Date.now()}-${chunk.index}.wav`);
+    let out = (0, import_path3.join)((0, import_os2.tmpdir)(), `talktomebaby-say-${Date.now()}-${chunk.index}.wav`);
     try {
       return await run(
         "say",
         ["-v", voice, "-o", out, "--file-format=WAVE", "--data-format=LEI16@22050", chunk.text],
         { signal }
-      ), { audio: new Uint8Array(await import_fs2.promises.readFile(out)), format: "wav", timings: estimatedTimings(chunk) };
+      ), { audio: new Uint8Array(await import_fs3.promises.readFile(out)), format: "wav", timings: estimatedTimings(chunk) };
     } finally {
-      await import_fs2.promises.rm(out, { force: !0 });
+      await import_fs3.promises.rm(out, { force: !0 });
     }
   }
 };
@@ -19641,14 +19732,118 @@ var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
         });
       });
     }
+    new import_obsidian.Setting(containerEl).setName("Audio cache size").setDesc(
+      "Audio you have already listened to is kept so replaying is instant and free. It never lives inside your vault."
+    ).addDropdown((dd) => {
+      for (let mb of CACHE_SIZE_CHOICES) dd.addOption(String(mb), cacheSizeLabel(mb));
+      dd.setValue(String(settings.cacheSizeMb)), dd.onChange((v) => {
+        this.plugin.applyCacheSize(Number(v));
+      });
+    }), new import_obsidian.Setting(containerEl).setName("Where it is kept").setDesc(this.plugin.cacheLocation()), new import_obsidian.Setting(containerEl).setName("Clear cache now").setDesc("Remove all saved audio. It is recreated as you listen again.").addButton((btn) => {
+      btn.setButtonText("Clear cache now").onClick(async () => {
+        let freed = await this.plugin.clearCache();
+        new import_obsidian.Notice(`Cleared ${formatBytes(freed)} of cached audio.`);
+      });
+    });
   }
 };
 function speedDesc(speed) {
   return `How fast to read. Currently ${speed.toFixed(1)}x.`;
 }
+function cacheSizeLabel(mb) {
+  return mb >= 1e3 ? `${mb / 1e3} GB` : `${mb} MB`;
+}
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  let mb = bytes / (1024 * 1024);
+  return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
+}
+
+// src/shell/cache-dir.ts
+var import_path4 = require("path"), APP = "speaking-editor";
+function cacheDir(platform, env, home) {
+  if (platform === "darwin") return (0, import_path4.join)(home, "Library", "Caches", APP);
+  let xdg = env.XDG_CACHE_HOME;
+  return typeof xdg == "string" && xdg.trim().length > 0 ? (0, import_path4.join)(xdg, APP) : (0, import_path4.join)(home, ".cache", APP);
+}
+
+// src/shell/positions.ts
+var POSITION_TTL_MS = 720 * 60 * 1e3, POSITION_CAP = 200;
+function recordPosition(positions, path, wordIndex, now, cap = POSITION_CAP) {
+  let next = { ...positions, [path]: { wordIndex, ts: now } };
+  return capOldest(next, cap);
+}
+function capOldest(positions, cap) {
+  let keys = Object.keys(positions);
+  if (keys.length <= cap) return positions;
+  let drop = keys.sort((a, b) => positions[a].ts - positions[b].ts).slice(0, keys.length - cap), next = { ...positions };
+  for (let k of drop) delete next[k];
+  return next;
+}
+function getFreshPosition(positions, path, now, ttl = POSITION_TTL_MS) {
+  let rec = positions[path];
+  if (rec && !(now - rec.ts >= ttl))
+    return rec;
+}
+function clearPosition(positions, path) {
+  if (!(path in positions)) return positions;
+  let next = { ...positions };
+  return delete next[path], next;
+}
+function readPositions(saved) {
+  let p = saved?.positions;
+  if (!p || typeof p != "object") return {};
+  let out = {};
+  for (let [path, v] of Object.entries(p)) {
+    let rec = v;
+    rec && typeof rec.wordIndex == "number" && typeof rec.ts == "number" && (out[path] = { wordIndex: rec.wordIndex, ts: rec.ts });
+  }
+  return out;
+}
+function resolveSentenceStart(model, wordIndex) {
+  for (let s of model.sentences) {
+    if (s.words.length === 0) continue;
+    let first = s.words[0].index, last = s.words[s.words.length - 1].index;
+    if (wordIndex >= first && wordIndex <= last) return first;
+  }
+  return wordIndex;
+}
+var WriteThrottle = class {
+  constructor(intervalMs, write, now = () => Date.now()) {
+    this.intervalMs = intervalMs;
+    this.write = write;
+    this.now = now;
+  }
+  intervalMs;
+  write;
+  now;
+  lastRun = -1 / 0;
+  pending = !1;
+  timer = null;
+  request() {
+    let t = this.now();
+    if (t - this.lastRun >= this.intervalMs) {
+      this.run();
+      return;
+    }
+    if (this.pending = !0, this.timer == null) {
+      let wait = this.intervalMs - (t - this.lastRun);
+      this.timer = setTimeout(() => {
+        this.timer = null, this.pending && this.run();
+      }, wait);
+    }
+  }
+  // Force an immediate write and cancel any pending trailing run.
+  flush() {
+    this.timer != null && (clearTimeout(this.timer), this.timer = null), this.run();
+  }
+  run() {
+    this.pending = !1, this.lastRun = this.now(), this.write();
+  }
+};
 
 // src/shell/main.ts
-var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
+var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
   keyStore;
   voiceCache;
   session = null;
@@ -19658,8 +19853,16 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
   boundDoms = /* @__PURE__ */ new WeakSet();
   // Exactly one pill ever exists, tied to the active session's UI.
   pill = null;
+  // ONE disk cache for every session, built at load and rebuilt on a size change.
+  cache;
+  // Per-note reading positions, mirrored to data.json (throttled).
+  positions = {};
+  positionThrottle;
   async onload() {
-    this.settings = mergeSettings(await this.loadData()), this.keyStore = new KeyStore(window.localStorage), this.voiceCache = new VoiceCache(), this.registerEditorExtension([
+    let saved = await this.loadData();
+    this.settings = mergeSettings(saved), this.positions = readPositions(saved), this.keyStore = new KeyStore(window.localStorage), this.voiceCache = new VoiceCache(), this.cache = new DiskCache(this.cacheLocation(), this.settings.cacheSizeMb * 1024 * 1024), this.positionThrottle = new WriteThrottle(POSITION_WRITE_INTERVAL_MS, () => {
+      this.persist();
+    }), this.registerEditorExtension([
       syncField,
       import_view4.EditorView.updateListener.of((u) => this.onEditorUpdate(u))
     ]), this.ribbonEl = this.addRibbonIcon("play-circle", "Play or pause reading", () => this.playPause()), this.addCommand({
@@ -19670,6 +19873,10 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
       id: "stop",
       name: "Stop reading",
       callback: () => this.stopSession()
+    }), this.addCommand({
+      id: "read-from-top",
+      name: "Read this note from the top",
+      callback: () => this.readFromTop()
     }), this.addCommand({
       id: "toggle-listening-mode",
       name: "Toggle listening mode",
@@ -19685,11 +19892,64 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
     });
   }
   onunload() {
-    this.disposeSession();
+    this.positionThrottle?.flush(), this.disposeSession();
   }
   // ─── Settings persistence ────────────────────────────────────────────────────
   async saveSettings() {
-    await this.saveData(this.settings);
+    await this.persist();
+  }
+  // The single writer to data.json: settings fields plus the positions sibling
+  // (see settings.ts for the payload shape). Everything that saves goes through
+  // here so a settings write never drops positions and vice versa.
+  async persist() {
+    await this.saveData({ ...this.settings, positions: this.positions });
+  }
+  // ─── Disk cache ──────────────────────────────────────────────────────────────
+  // The resolved, per-device cache directory (never inside a vault).
+  cacheLocation() {
+    return cacheDir(process.platform, process.env, (0, import_os3.homedir)());
+  }
+  // Rebuild the cache instance against the new size cap. New sessions use it;
+  // any live session keeps the cache it was built with until it ends.
+  async applyCacheSize(mb) {
+    this.settings.cacheSizeMb = mb, await this.saveSettings(), this.cache = new DiskCache(this.cacheLocation(), mb * 1024 * 1024);
+  }
+  // Empty the cache directory of the DiskCache's own *.bin/*.json files and
+  // return how many bytes were freed. The vendored DiskCache stays untouched, so
+  // clearing lives here rather than as a method on it.
+  async clearCache() {
+    let dir = this.cacheLocation(), freed = 0;
+    try {
+      let files = await import_fs4.promises.readdir(dir);
+      for (let f of files) {
+        if (!f.endsWith(".bin") && !f.endsWith(".json")) continue;
+        let p = (0, import_path5.join)(dir, f);
+        try {
+          let st = await import_fs4.promises.stat(p);
+          await import_fs4.promises.rm(p, { force: !0 }), freed += st.size;
+        } catch {
+        }
+      }
+    } catch {
+    }
+    return freed;
+  }
+  // ─── Per-note resume ─────────────────────────────────────────────────────────
+  // A session crossed into a new sentence: remember the spot for this note and
+  // schedule a throttled write-through.
+  onSessionPosition(wordIndex) {
+    this.positions = recordPosition(this.positions, this.sessionUri, wordIndex, Date.now()), this.positionThrottle.request();
+  }
+  // "Read this note from the top": clear any saved position and start fresh at
+  // word 0, restarting a live session on this note if there is one.
+  readFromTop() {
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
+    if (!view) return;
+    let cm = view.editor.cm;
+    cm && this.restartFromTop(cm, view.file?.path ?? "untitled");
+  }
+  restartFromTop(cm, uri) {
+    this.disposeSession(), this.positions = clearPosition(this.positions, uri), this.positionThrottle.flush(), this.sessionView = cm, this.sessionUri = uri, this.session = this.buildSession(cm, uri), this.bindClickToSeek(cm), this.ensurePill(), this.session.playPause();
   }
   async toggleListeningMode() {
     await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian2.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
@@ -19733,7 +19993,9 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
       voice,
       speed: this.settings.speed,
       primeAtWord,
-      onState: (s) => this.onSessionState(s)
+      cache: this.cache,
+      onState: (s) => this.onSessionState(s),
+      onPositionSaved: (w) => this.onSessionPosition(w)
     });
   }
   playPause() {
@@ -19749,16 +20011,22 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
     }
   }
   startSession(cm, uri) {
-    this.sessionView = cm, this.sessionUri = uri, this.session = this.buildSession(cm, uri), this.bindClickToSeek(cm), this.ensurePill(), this.session.playPause();
+    this.sessionView = cm, this.sessionUri = uri;
+    let fresh = getFreshPosition(this.positions, uri, Date.now()), primeAtWord;
+    if (fresh) {
+      let model = parseDocument(cm.state.doc.toString(), uri, 1);
+      primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
+    }
+    this.session = this.buildSession(cm, uri, primeAtWord), this.bindClickToSeek(cm), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian2.Notice("Resumed where you left off");
   }
   stopSession() {
-    this.session && (this.session.stop(), this.updateRibbon("idle"));
+    this.session && (this.session.stop(), this.positionThrottle.flush(), this.updateRibbon("idle"));
   }
   disposeSession() {
     this.destroyPill(), this.session?.dispose(), this.session = null, this.sessionView = null, this.updateRibbon("idle");
   }
   onSessionState(state) {
-    this.updateRibbon(state), state === "playing" || state === "paused" ? (this.ensurePill(), this.pill?.setState(state)) : this.destroyPill();
+    this.updateRibbon(state), state === "ended" && (this.positions = clearPosition(this.positions, this.sessionUri), this.positionThrottle.flush()), state === "playing" || state === "paused" ? (this.ensurePill(), this.pill?.setState(state)) : this.destroyPill();
   }
   // ─── Pill lifecycle ──────────────────────────────────────────────────────────
   ensurePill() {
@@ -19851,6 +20119,16 @@ var SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
   }
   acceptanceDisposeSession() {
     this.disposeSession();
+  }
+  // Resume/position helpers so check 19 drives the real plugin paths.
+  acceptanceStopSession() {
+    this.stopSession();
+  }
+  acceptanceReadFromTop(cm, uri) {
+    this.restartFromTop(cm, uri);
+  }
+  acceptanceClearPosition(uri) {
+    this.positions = clearPosition(this.positions, uri);
   }
   // ─── Click-to-seek ───────────────────────────────────────────────────────────
   // Bind once per editor DOM (sessions come and go on the same editor); the

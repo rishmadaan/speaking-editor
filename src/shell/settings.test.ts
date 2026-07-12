@@ -5,6 +5,7 @@ import {
   voiceForProvider,
   rememberVoice,
   SpeakingEditorSettings,
+  CACHE_SIZE_CHOICES,
 } from "./settings";
 
 describe("DEFAULT_SETTINGS", () => {
@@ -13,6 +14,7 @@ describe("DEFAULT_SETTINGS", () => {
     expect(DEFAULT_SETTINGS.voiceByProvider).toEqual({});
     expect(DEFAULT_SETTINGS.speed).toBe(1.0);
     expect(DEFAULT_SETTINGS.listeningMode).toBe(true);
+    expect(DEFAULT_SETTINGS.cacheSizeMb).toBe(200);
   });
 
   it("carries no api key field of any kind", () => {
@@ -61,6 +63,25 @@ describe("mergeSettings", () => {
     const merged = mergeSettings({ speed: 1.2, elevenLabsKey: "leak", junk: 5 } as any);
     expect(merged).toEqual({ ...DEFAULT_SETTINGS, speed: 1.2 });
     expect(JSON.stringify(merged)).not.toContain("leak");
+  });
+});
+
+describe("cacheSizeMb", () => {
+  it("offers the four documented choices with 200 the default", () => {
+    expect(CACHE_SIZE_CHOICES).toEqual([50, 200, 500, 1000]);
+    expect(DEFAULT_SETTINGS.cacheSizeMb).toBe(200);
+  });
+
+  it("keeps a valid saved choice and defaults an invalid one", () => {
+    expect(mergeSettings({ cacheSizeMb: 500 }).cacheSizeMb).toBe(500);
+    expect(mergeSettings({ cacheSizeMb: 1000 }).cacheSizeMb).toBe(1000);
+    // not one of the choices -> default
+    expect(mergeSettings({ cacheSizeMb: 137 } as any).cacheSizeMb).toBe(200);
+    expect(mergeSettings({ cacheSizeMb: "500" } as any).cacheSizeMb).toBe(200);
+  });
+
+  it("defaults cacheSizeMb for old payloads that lack it", () => {
+    expect(mergeSettings({ providerId: "say" }).cacheSizeMb).toBe(200);
   });
 });
 

@@ -3,10 +3,10 @@
 // no jargon. Keys go through the KeyStore (localStorage) and are never rendered
 // back as text. Voices fill asynchronously through the vendored VoiceCache so the
 // tab opens instantly and shows the remembered value while it loads.
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type SpeakingEditorPlugin from "./main";
 import { availableProviders, buildProvider } from "./providers";
-import { voiceForProvider } from "./settings";
+import { voiceForProvider, CACHE_SIZE_CHOICES } from "./settings";
 import { VoiceInfo } from "../engine/synthesis/provider";
 
 export class SpeakingEditorSettingTab extends PluginSettingTab {
@@ -114,9 +114,47 @@ export class SpeakingEditorSettingTab extends PluginSettingTab {
           });
       });
     }
+
+    // ─── Audio cache ─────────────────────────────────────────────────────────
+    new Setting(containerEl)
+      .setName("Audio cache size")
+      .setDesc(
+        "Audio you have already listened to is kept so replaying is instant and free. It never lives inside your vault."
+      )
+      .addDropdown((dd) => {
+        for (const mb of CACHE_SIZE_CHOICES) dd.addOption(String(mb), cacheSizeLabel(mb));
+        dd.setValue(String(settings.cacheSizeMb));
+        dd.onChange((v) => void this.plugin.applyCacheSize(Number(v)));
+      });
+
+    // The resolved location, shown as muted text so it is inspectable but calm.
+    new Setting(containerEl)
+      .setName("Where it is kept")
+      .setDesc(this.plugin.cacheLocation());
+
+    new Setting(containerEl)
+      .setName("Clear cache now")
+      .setDesc("Remove all saved audio. It is recreated as you listen again.")
+      .addButton((btn) => {
+        btn.setButtonText("Clear cache now").onClick(async () => {
+          const freed = await this.plugin.clearCache();
+          new Notice(`Cleared ${formatBytes(freed)} of cached audio.`);
+        });
+      });
   }
 }
 
 function speedDesc(speed: number): string {
   return `How fast to read. Currently ${speed.toFixed(1)}x.`;
+}
+
+function cacheSizeLabel(mb: number): string {
+  return mb >= 1000 ? `${mb / 1000} GB` : `${mb} MB`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
 }

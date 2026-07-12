@@ -1,6 +1,6 @@
 # 0006: Audio disk cache and per-note resume
 
-Status: draft (builds after 0005 lands)
+Status: built (222 tests; live checks 18-19 pending the final armed run)
 Date: 2026-07-12
 Depends on: 0003. Two inherited behaviors finally wired: an unchanged
 paragraph is never paid for twice, and a note remembers where you left

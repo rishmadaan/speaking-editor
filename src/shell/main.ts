@@ -6,6 +6,9 @@
 // command is dev-only (DEV_ACCEPTANCE esbuild define).
 import { MarkdownView, Menu, Notice, Plugin, setIcon } from "obsidian";
 import { EditorView, ViewUpdate } from "@codemirror/view";
+import { promises as fs } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 import { syncField } from "./sync-field";
 import { ReadingSession, SessionState } from "./session";
 import { runAcceptance } from "./acceptance";
@@ -13,9 +16,23 @@ import { SpeakingEditorSettings, mergeSettings, rememberVoice, voiceForProvider 
 import { KeyStore } from "./key-store";
 import { availableProviders, buildProvider } from "./providers";
 import { VoiceCache } from "../engine/synthesis/voice-cache";
+import { DiskCache } from "../engine/synthesis/disk-cache";
 import { SpeakingEditorSettingTab } from "./settings-tab";
 import { PlayerPill } from "./player-pill";
 import { openVoiceMenu, renderSpeedMenu, speedMenuModel } from "./pill-menus";
+import { cacheDir } from "./cache-dir";
+import { parseDocument } from "../engine/core";
+import {
+  Positions,
+  readPositions,
+  recordPosition,
+  getFreshPosition,
+  clearPosition,
+  resolveSentenceStart,
+  WriteThrottle,
+} from "./positions";
+
+const POSITION_WRITE_INTERVAL_MS = 5000; // persist positions at most this often
 
 export default class SpeakingEditorPlugin extends Plugin {
   // `declare` narrows the base Plugin's `settings?: unknown` slot (the sanctioned
@@ -32,10 +49,20 @@ export default class SpeakingEditorPlugin extends Plugin {
   // Exactly one pill ever exists, tied to the active session's UI.
   private pill: PlayerPill | null = null;
 
+  // ONE disk cache for every session, built at load and rebuilt on a size change.
+  private cache!: DiskCache;
+  // Per-note reading positions, mirrored to data.json (throttled).
+  private positions: Positions = {};
+  private positionThrottle!: WriteThrottle;
+
   async onload() {
-    this.settings = mergeSettings(await this.loadData());
+    const saved = await this.loadData();
+    this.settings = mergeSettings(saved);
+    this.positions = readPositions(saved);
     this.keyStore = new KeyStore(window.localStorage);
     this.voiceCache = new VoiceCache();
+    this.cache = new DiskCache(this.cacheLocation(), this.settings.cacheSizeMb * 1024 * 1024);
+    this.positionThrottle = new WriteThrottle(POSITION_WRITE_INTERVAL_MS, () => void this.persist());
 
     // Register the sync field plus a tiny update listener that forwards a user's
     // typing on the session editor into the pill (spec 0004's polite fade). Only
@@ -59,6 +86,11 @@ export default class SpeakingEditorPlugin extends Plugin {
       callback: () => this.stopSession(),
     });
     this.addCommand({
+      id: "read-from-top",
+      name: "Read this note from the top",
+      callback: () => this.readFromTop(),
+    });
+    this.addCommand({
       id: "toggle-listening-mode",
       name: "Toggle listening mode",
       callback: () => void this.toggleListeningMode(),
@@ -80,13 +112,93 @@ export default class SpeakingEditorPlugin extends Plugin {
   }
 
   onunload() {
+    // Persist the latest reading position before tearing down.
+    this.positionThrottle?.flush();
     this.disposeSession();
   }
 
   // ─── Settings persistence ────────────────────────────────────────────────────
 
   async saveSettings() {
-    await this.saveData(this.settings);
+    await this.persist();
+  }
+
+  // The single writer to data.json: settings fields plus the positions sibling
+  // (see settings.ts for the payload shape). Everything that saves goes through
+  // here so a settings write never drops positions and vice versa.
+  private async persist() {
+    await this.saveData({ ...this.settings, positions: this.positions });
+  }
+
+  // ─── Disk cache ──────────────────────────────────────────────────────────────
+
+  // The resolved, per-device cache directory (never inside a vault).
+  cacheLocation(): string {
+    return cacheDir(process.platform, process.env, homedir());
+  }
+
+  // Rebuild the cache instance against the new size cap. New sessions use it;
+  // any live session keeps the cache it was built with until it ends.
+  async applyCacheSize(mb: number) {
+    this.settings.cacheSizeMb = mb;
+    await this.saveSettings();
+    this.cache = new DiskCache(this.cacheLocation(), mb * 1024 * 1024);
+  }
+
+  // Empty the cache directory of the DiskCache's own *.bin/*.json files and
+  // return how many bytes were freed. The vendored DiskCache stays untouched, so
+  // clearing lives here rather than as a method on it.
+  async clearCache(): Promise<number> {
+    const dir = this.cacheLocation();
+    let freed = 0;
+    try {
+      const files = await fs.readdir(dir);
+      for (const f of files) {
+        if (!f.endsWith(".bin") && !f.endsWith(".json")) continue;
+        const p = join(dir, f);
+        try {
+          const st = await fs.stat(p);
+          await fs.rm(p, { force: true });
+          freed += st.size;
+        } catch {
+          /* a file that vanished under us is already "freed" enough */
+        }
+      }
+    } catch {
+      /* no directory yet means nothing to clear */
+    }
+    return freed;
+  }
+
+  // ─── Per-note resume ─────────────────────────────────────────────────────────
+
+  // A session crossed into a new sentence: remember the spot for this note and
+  // schedule a throttled write-through.
+  private onSessionPosition(wordIndex: number) {
+    this.positions = recordPosition(this.positions, this.sessionUri, wordIndex, Date.now());
+    this.positionThrottle.request();
+  }
+
+  // "Read this note from the top": clear any saved position and start fresh at
+  // word 0, restarting a live session on this note if there is one.
+  private readFromTop() {
+    const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!view) return;
+    const cm = (view.editor as any).cm as EditorView | undefined;
+    if (!cm) return;
+    this.restartFromTop(cm, view.file?.path ?? "untitled");
+  }
+
+  private restartFromTop(cm: EditorView, uri: string) {
+    this.disposeSession();
+    this.positions = clearPosition(this.positions, uri);
+    this.positionThrottle.flush(); // persist the clear now
+    this.sessionView = cm;
+    this.sessionUri = uri;
+    this.session = this.buildSession(cm, uri); // no prime -> starts at word 0
+    this.bindClickToSeek(cm);
+    this.ensurePill();
+    this.session.playPause();
   }
 
   private async toggleListeningMode() {
@@ -156,7 +268,9 @@ export default class SpeakingEditorPlugin extends Plugin {
       voice,
       speed: this.settings.speed,
       primeAtWord,
+      cache: this.cache,
       onState: (s) => this.onSessionState(s),
+      onPositionSaved: (w) => this.onSessionPosition(w),
     });
   }
 
@@ -179,15 +293,27 @@ export default class SpeakingEditorPlugin extends Plugin {
   private startSession(cm: EditorView, uri: string) {
     this.sessionView = cm;
     this.sessionUri = uri;
-    this.session = this.buildSession(cm, uri);
+    // Resume-on-play: a fresh (<12h) saved position starts the note from the
+    // START OF THE SENTENCE containing that word, with one quiet Notice. The
+    // session is primed PAUSED at that word and immediately played (resume snaps
+    // to the sentence start). No saved position means a normal start from the top.
+    const fresh = getFreshPosition(this.positions, uri, Date.now());
+    let primeAtWord: number | undefined;
+    if (fresh) {
+      const model = parseDocument(cm.state.doc.toString(), uri, 1);
+      primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
+    }
+    this.session = this.buildSession(cm, uri, primeAtWord);
     this.bindClickToSeek(cm);
     this.ensurePill(); // appears the moment a session starts
-    this.session.playPause(); // begin playing
+    this.session.playPause(); // begin playing (or resume from the primed word)
+    if (primeAtWord != null) new Notice("Resumed where you left off");
   }
 
   private stopSession() {
     if (!this.session) return;
     this.session.stop(); // fires onState "idle", which removes the pill
+    this.positionThrottle.flush(); // persist where the listener stopped
     this.updateRibbon("idle");
   }
 
@@ -201,6 +327,12 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   private onSessionState(state: SessionState) {
     this.updateRibbon(state);
+    // A note that finished has nothing to resume: clear its saved position and
+    // persist the clear now.
+    if (state === "ended") {
+      this.positions = clearPosition(this.positions, this.sessionUri);
+      this.positionThrottle.flush();
+    }
     // The pill lives only while a session is live: a live state ensures it exists
     // and reflects reality; a terminal state (stop -> idle, natural end, error)
     // removes it. A later play on a still-alive session recreates a fresh pill.
@@ -323,6 +455,19 @@ export default class SpeakingEditorPlugin extends Plugin {
 
   acceptanceDisposeSession() {
     this.disposeSession();
+  }
+
+  // Resume/position helpers so check 19 drives the real plugin paths.
+  acceptanceStopSession() {
+    this.stopSession();
+  }
+
+  acceptanceReadFromTop(cm: EditorView, uri: string) {
+    this.restartFromTop(cm, uri);
+  }
+
+  acceptanceClearPosition(uri: string) {
+    this.positions = clearPosition(this.positions, uri);
   }
 
   // ─── Click-to-seek ───────────────────────────────────────────────────────────

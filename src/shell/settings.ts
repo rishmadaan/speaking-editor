@@ -8,14 +8,27 @@ export interface SpeakingEditorSettings {
   voiceByProvider: Record<string, string>;
   speed: number;
   listeningMode: boolean;
+  // Disk-cache size cap in megabytes. One of CACHE_SIZE_CHOICES.
+  cacheSizeMb: number;
 }
+
+// The offered "Audio cache size" choices, in MB; 200 is the default.
+export const CACHE_SIZE_CHOICES = [50, 200, 500, 1000] as const;
 
 export const DEFAULT_SETTINGS: SpeakingEditorSettings = {
   providerId: "edge",
   voiceByProvider: {},
   speed: 1.0,
   listeningMode: true,
+  cacheSizeMb: 200,
 };
+
+// NOTE ON DATA.JSON SHAPE: the persisted payload is the settings object's fields
+// PLUS a sibling `positions` map (see positions.ts), i.e.
+// { providerId, voiceByProvider, speed, listeningMode, cacheSizeMb, positions }.
+// Positions live outside the SpeakingEditorSettings shape on purpose: they are
+// per-note runtime state, not user preferences, so mergeSettings never reads or
+// writes them and old payloads (no positions / no cacheSizeMb) stay valid.
 
 // Merge partial saved data over the defaults, reading only known fields so an
 // unknown or stray key (e.g. a mistakenly persisted secret) can never survive.
@@ -30,6 +43,9 @@ export function mergeSettings(saved: unknown): SpeakingEditorSettings {
     speed: typeof s.speed === "number" ? s.speed : DEFAULT_SETTINGS.speed,
     listeningMode:
       typeof s.listeningMode === "boolean" ? s.listeningMode : DEFAULT_SETTINGS.listeningMode,
+    cacheSizeMb: (CACHE_SIZE_CHOICES as readonly number[]).includes(s.cacheSizeMb as number)
+      ? (s.cacheSizeMb as number)
+      : DEFAULT_SETTINGS.cacheSizeMb,
   };
 }
 

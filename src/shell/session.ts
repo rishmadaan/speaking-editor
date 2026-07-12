@@ -9,12 +9,19 @@ import { StateEffect } from "@codemirror/state";
 import { parseDocument, buildChunks, DocumentModel, Chunk } from "../engine/core";
 import { SynthesisService } from "../engine/synthesis/synthesis-service";
 import { EdgeProvider } from "../engine/synthesis/edge";
-import { TtsProvider } from "../engine/synthesis/provider";
+import { TtsProvider, ChunkAudio } from "../engine/synthesis/provider";
 import { Engine, EngineCallbacks, AudioLike } from "../playback/engine";
 import { buildWordEntries, WordEntry } from "./word-runs";
 import { setWords, setPosition, clearAll, syncField } from "./sync-field";
 
 export type SessionState = "idle" | "playing" | "paused" | "ended" | "error";
+
+// The subset of the vendored DiskCache the session needs. Kept structural so a
+// DiskCache instance drops in without the session importing the disk module.
+export interface CacheLike {
+  get(key: string): Promise<ChunkAudio | undefined>;
+  set(key: string, value: ChunkAudio): Promise<void>;
+}
 
 export interface ReadingSessionOptions {
   docText: string;
@@ -30,6 +37,14 @@ export interface ReadingSessionOptions {
   // When set, construction primes PAUSED at this word (via Engine.primeAt)
   // instead of starting playback, so a later play resumes exactly there.
   primeAtWord?: number;
+  // Optional disk cache shared across sessions: synthesized audio persists so an
+  // unchanged paragraph is never paid for twice. Omit for no caching.
+  cache?: CacheLike;
+  // Called with the current word each time the reading crosses into a NEW
+  // sentence (sentence-granularity position reporting), so the shell can persist
+  // where the listener is for later resume. The natural end of a note is exposed
+  // via onState("ended"), which the shell uses to clear the saved position.
+  onPositionSaved?: (wordIndex: number) => void;
 }
 
 export class ReadingSession {
@@ -40,6 +55,10 @@ export class ReadingSession {
   private engine: Engine;
   private view: EditorView;
   private onStateCb: (state: SessionState, message?: string) => void;
+  private onPositionSaved?: (wordIndex: number) => void;
+  // The last sentence we reported a position for, so we notify the shell only on
+  // a genuine sentence change, not on every word advance.
+  private lastReportedSentence = -1;
 
   private rafId: number | null = null;
   private _state: SessionState = "idle";
@@ -52,13 +71,15 @@ export class ReadingSession {
   constructor(opts: ReadingSessionOptions) {
     this.view = opts.view;
     this.onStateCb = opts.onState;
+    this.onPositionSaved = opts.onPositionSaved;
     this.model = parseDocument(opts.docText, opts.uri, 1);
     this.chunks = buildChunks(this.model);
     this.entries = buildWordEntries(this.model, opts.docText);
-    // no disk cache in this slice; the service still de-dupes in-flight requests
+    // The shared disk cache (when provided) lets the service serve a replayed
+    // chunk from disk with zero network; it still de-dupes in-flight requests.
     const provider = opts.provider ?? new EdgeProvider();
     const voice = opts.voice ?? provider.defaultVoice;
-    this.synthesis = new SynthesisService(provider, voice);
+    this.synthesis = new SynthesisService(provider, voice, opts.cache);
 
     const cb: EngineCallbacks = {
       requestChunk: (i, priority) => this.requestChunk(i, priority),
@@ -175,6 +196,13 @@ export class ReadingSession {
   }
 
   private onPosition(word: number, sentence: number) {
+    // Sentence-granularity position report: only when the reading crosses into a
+    // new sentence. At that instant `word` is that sentence's first word, so the
+    // shell persists a clean sentence-start position for resume.
+    if (sentence !== this.lastReportedSentence) {
+      this.lastReportedSentence = sentence;
+      this.onPositionSaved?.(word);
+    }
     const effects: StateEffect<unknown>[] = [setPosition.of({ word, sentence })];
     // gentle follow: if the sentence's first run is outside the visible viewport,
     // scroll it back into view. Cheap guard: only measure the one anchor position.
