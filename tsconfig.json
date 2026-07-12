@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2022",
+    "lib": ["ES2022", "dom", "dom.iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "spikes/**/*.ts"],
+  "exclude": ["node_modules", "reference", "src/**/*.test.ts", "spikes/**/*.test.ts"]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "speaking-editor",
+  "version": "0.0.1",
+  "description": "Word-synced read-aloud inside Obsidian's native editor. Read aloud, text to speech, listen to your notes.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "msedge-tts": "^2.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.3.0",
+    "vitest": "^3.0.0"
+  }
+}
