@@ -3,7 +3,7 @@
 // preview, drives a real ReadingSession (real Edge synthesis, real audio), runs the
 // seven checks from specs/0001, and writes skeleton-acceptance.md to the vault root.
 // Every failure path still writes the report, so a run is never silently lost.
-import { App, MarkdownView, TFile } from "obsidian";
+import { App, MarkdownView, Notice, TFile } from "obsidian";
 import { EditorView } from "@codemirror/view";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
@@ -76,9 +76,17 @@ interface Check { name: string; pass: boolean; detail: string }
 export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Promise<void> {
   const lines: string[] = [`# Skeleton acceptance report`, ``];
   const checks: Check[] = [];
-  // Snapshot settings so the control-surface checks (which mutate provider/voice/
-  // listening mode) restore them at the end and repeat runs stay stable.
+  // Snapshot settings AND positions so the checks (which mutate provider/voice/
+  // listening mode and reading positions) restore them at the end; repeat runs
+  // stay stable and the harness never leaves residue a user would trip over.
   const settingsSnapshot = JSON.stringify(plugin.settings);
+  const positionsSnapshot = plugin.acceptancePositionsSnapshot();
+  // The run drives the plugin's own sessions on a shared editor. A human press
+  // mid-run creates two drivers for one car (2026-07-12: stacking voices, dead
+  // toggles). Make the plugin's user-facing controls inert for the duration and
+  // say so with a banner that stays up until the run ends.
+  plugin.acceptanceRunning = true;
+  const banner = new Notice("Speaking Editor verification is running (about a minute). Please do not click or play until this notice disappears.", 0);
   const write = () => app.vault.adapter.write(REPORT, lines.join("\n") + "\n");
   // write after every check so a mid-run hang or abort never loses the trail
   const check = (name: string, pass: boolean, detail: string) => {
@@ -876,18 +884,23 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       /* nothing more we can do */
     }
   } finally {
+    plugin.acceptanceRunning = false;
+    banner.hide();
     session?.dispose();
     plugin.acceptanceDisposeSession();
-    // Restore settings to their pre-run values so repeat runs are stable.
+    // Restore settings AND positions to their pre-run values so repeat runs are
+    // stable and no harness residue (e.g. a saved position on the fixture note)
+    // leaks into real use.
     try {
       const snap = JSON.parse(settingsSnapshot);
       plugin.settings.providerId = snap.providerId;
       plugin.settings.voiceByProvider = snap.voiceByProvider;
       plugin.settings.speed = snap.speed;
       plugin.settings.listeningMode = snap.listeningMode;
+      plugin.acceptanceRestorePositions(positionsSnapshot);
       await plugin.saveSettings();
     } catch {
-      /* restoring settings is best-effort; never mask the run's own outcome */
+      /* restoring is best-effort; never mask the run's own outcome */
     }
   }
 }

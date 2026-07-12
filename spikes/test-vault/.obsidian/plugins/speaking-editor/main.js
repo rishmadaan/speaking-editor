@@ -18029,7 +18029,7 @@ __export(main_exports, {
   default: () => SpeakingEditorPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian2 = require("obsidian"), import_view4 = require("@codemirror/view"), import_fs4 = require("fs"), import_os3 = require("os"), import_path5 = require("path");
+var import_obsidian3 = require("obsidian"), import_view4 = require("@codemirror/view"), import_fs4 = require("fs"), import_os3 = require("os"), import_path5 = require("path");
 
 // src/shell/sync-field.ts
 var import_state = require("@codemirror/state"), import_view = require("@codemirror/view"), setWords = import_state.StateEffect.define(), setPosition = import_state.StateEffect.define(), clearAll = import_state.StateEffect.define();
@@ -19048,7 +19048,7 @@ var RangeSurface = class {
 };
 
 // src/shell/acceptance.ts
-var import_view3 = require("@codemirror/view"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path");
+var import_obsidian = require("obsidian"), import_view3 = require("@codemirror/view"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path");
 
 // src/shell/player-pill.ts
 var SPEED_PRESETS = [0.8, 1, 1.2, 1.5, 2, 2.5, 3];
@@ -19252,7 +19252,9 @@ async function waitUntil(pred, timeoutMs, step = 50) {
   return pred();
 }
 async function runAcceptance(app, plugin) {
-  let lines = ["# Skeleton acceptance report", ""], checks = [], settingsSnapshot = JSON.stringify(plugin.settings), write = () => app.vault.adapter.write(REPORT, lines.join(`
+  let lines = ["# Skeleton acceptance report", ""], checks = [], settingsSnapshot = JSON.stringify(plugin.settings), positionsSnapshot = plugin.acceptancePositionsSnapshot();
+  plugin.acceptanceRunning = !0;
+  let banner = new import_obsidian.Notice("Speaking Editor verification is running (about a minute). Please do not click or play until this notice disappears.", 0), write = () => app.vault.adapter.write(REPORT, lines.join(`
 `) + `
 `), check = (name, pass, detail) => {
     checks.push({ name, pass, detail }), lines.push(`- ${pass ? "PASS" : "FAIL"}: ${name}. ${detail}`), write();
@@ -19707,10 +19709,10 @@ ARMED: waiting for the window to become visible (10 minute limit)...
     } catch {
     }
   } finally {
-    session?.dispose(), plugin.acceptanceDisposeSession();
+    plugin.acceptanceRunning = !1, banner.hide(), session?.dispose(), plugin.acceptanceDisposeSession();
     try {
       let snap = JSON.parse(settingsSnapshot);
-      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, await plugin.saveSettings();
+      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, plugin.acceptanceRestorePositions(positionsSnapshot), await plugin.saveSettings();
     } catch {
     }
   }
@@ -19937,8 +19939,8 @@ var VoiceCache = class {
 };
 
 // src/shell/settings-tab.ts
-var import_obsidian = require("obsidian");
-var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
+var import_obsidian2 = require("obsidian");
+var SpeakingEditorSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -19948,14 +19950,14 @@ var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
     let { containerEl } = this;
     containerEl.empty();
     let settings = this.plugin.settings, provider = buildProvider(settings.providerId, this.plugin.keyStore);
-    new import_obsidian.Setting(containerEl).setName("Voice provider").setDesc("Where the spoken audio comes from. Edge is free and keeps words in exact sync.").addDropdown((dd) => {
+    new import_obsidian2.Setting(containerEl).setName("Voice provider").setDesc("Where the spoken audio comes from. Edge is free and keeps words in exact sync.").addDropdown((dd) => {
       for (let p of availableProviders2()) dd.addOption(p.id, p.label);
       dd.setValue(settings.providerId), dd.onChange(async (id) => {
         await this.plugin.applyProvider(id), this.display();
       });
     });
     let currentVoice = voiceForProvider(settings, settings.providerId, provider.defaultVoice);
-    new import_obsidian.Setting(containerEl).setName("Voice").setDesc("The specific voice to read in.").addDropdown((dd) => {
+    new import_obsidian2.Setting(containerEl).setName("Voice").setDesc("The specific voice to read in.").addDropdown((dd) => {
       dd.addOption(currentVoice, currentVoice), dd.setValue(currentVoice), dd.onChange((voice) => {
         this.plugin.applyVoice(settings.providerId, voice);
       });
@@ -19966,17 +19968,17 @@ var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
       };
       this.plugin.voiceCache.resolve(settings.providerId, () => provider.listVoices()).then(fill).catch(() => fill([{ id: provider.defaultVoice, label: provider.defaultVoice }]));
     });
-    let speedSetting = new import_obsidian.Setting(containerEl).setName("Reading speed").setDesc(speedDesc(settings.speed));
+    let speedSetting = new import_obsidian2.Setting(containerEl).setName("Reading speed").setDesc(speedDesc(settings.speed));
     if (speedSetting.addSlider((sl) => {
       sl.setLimits(0.5, 3, 0.1), sl.setValue(settings.speed), sl.setInstant(!0), sl.onChange((v) => {
         speedSetting.setDesc(speedDesc(v)), this.plugin.applySpeed(v);
       });
-    }), new import_obsidian.Setting(containerEl).setName("Listening mode").setDesc("When on, clicking a word jumps the reading there. When off, clicking edits as normal.").addToggle((tg) => {
+    }), new import_obsidian2.Setting(containerEl).setName("Listening mode").setDesc("When on, clicking a word jumps the reading there. When off, clicking edits as normal.").addToggle((tg) => {
       tg.setValue(settings.listeningMode), tg.onChange((on) => {
         this.plugin.applyListeningMode(on);
       });
     }), provider.requiresKey) {
-      let hasKey = this.plugin.keyStore.has(settings.providerId), keySetting = new import_obsidian.Setting(containerEl).setName(`${provider.label} API key`).setDesc(
+      let hasKey = this.plugin.keyStore.has(settings.providerId), keySetting = new import_obsidian2.Setting(containerEl).setName(`${provider.label} API key`).setDesc(
         hasKey ? "A key is saved on this device. Paste a new one to replace it." : "No key saved. Paste your key to use this provider. Keys stay on this device and are never synced."
       );
       keySetting.addText((tx) => {
@@ -19990,17 +19992,17 @@ var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
         });
       });
     }
-    new import_obsidian.Setting(containerEl).setName("Audio cache size").setDesc(
+    new import_obsidian2.Setting(containerEl).setName("Audio cache size").setDesc(
       "Audio you have already listened to is kept so replaying is instant and free. It never lives inside your vault."
     ).addDropdown((dd) => {
       for (let mb of CACHE_SIZE_CHOICES) dd.addOption(String(mb), cacheSizeLabel(mb));
       dd.setValue(String(settings.cacheSizeMb)), dd.onChange((v) => {
         this.plugin.applyCacheSize(Number(v));
       });
-    }), new import_obsidian.Setting(containerEl).setName("Where it is kept").setDesc(this.plugin.cacheLocation()), new import_obsidian.Setting(containerEl).setName("Clear cache now").setDesc("Remove all saved audio. It is recreated as you listen again.").addButton((btn) => {
+    }), new import_obsidian2.Setting(containerEl).setName("Where it is kept").setDesc(this.plugin.cacheLocation()), new import_obsidian2.Setting(containerEl).setName("Clear cache now").setDesc("Remove all saved audio. It is recreated as you listen again.").addButton((btn) => {
       btn.setButtonText("Clear cache now").onClick(async () => {
         let freed = await this.plugin.clearCache();
-        new import_obsidian.Notice(`Cleared ${formatBytes(freed)} of cached audio.`);
+        new import_obsidian2.Notice(`Cleared ${formatBytes(freed)} of cached audio.`);
       });
     });
   }
@@ -20101,7 +20103,7 @@ var WriteThrottle = class {
 };
 
 // src/shell/main.ts
-var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
+var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends import_obsidian3.Plugin {
   keyStore;
   voiceCache;
   session = null;
@@ -20141,11 +20143,12 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     }), this.addCommand({
       id: "stop",
       name: "Stop reading",
-      callback: () => this.stopSession()
+      // guarded: the harness owns sessions while a verification run is live
+      callback: () => this.acceptanceRunning ? void 0 : this.stopSession()
     }), this.addCommand({
       id: "read-from-top",
       name: "Read this note from the top",
-      callback: () => this.readFromTop()
+      callback: () => this.acceptanceRunning ? void 0 : this.readFromTop()
     }), this.addCommand({
       id: "toggle-listening-mode",
       name: "Toggle listening mode",
@@ -20212,7 +20215,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   // "Read this note from the top": clear any saved position and start fresh at
   // word 0, restarting a live session on this note if there is one.
   readFromTop() {
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
     if (!view) return;
     let cm = view.editor.cm;
     cm && this.restartFromTop(cm, view.file?.path ?? "untitled");
@@ -20223,7 +20226,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
     this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container, this.session = this.buildSession(cm, uri), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause();
   }
   async toggleListeningMode() {
-    await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian2.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
+    await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian3.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
   }
   // ─── Live setting application (called by the settings tab and the pill) ────────
   // Persist the listening flag and reflect it in the pill's ear. The pill ear and
@@ -20283,7 +20286,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   }
   // Resolve the surface context for a session about to start on the active view.
   resolveSurfaceContext() {
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
     return view && this.modeOf(view) === "reading" ? { view, mode: "reading", container: this.readingContainerOf(view) } : { view, mode: "live", container: null };
   }
   // Bind the right click-to-seek surface for the mode, and remember where the pill
@@ -20296,10 +20299,14 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   }
   // Stop a running reading session when its view flips edit/preview mid-session.
   checkModeFlip() {
-    !this.session || !this.sessionMdView || this.modeOf(this.sessionMdView) !== this.sessionMode && (this.disposeSession(), new import_obsidian2.Notice("Reading stopped: the view changed"));
+    !this.session || !this.sessionMdView || this.modeOf(this.sessionMdView) !== this.sessionMode && (this.disposeSession(), new import_obsidian3.Notice("Reading stopped: the view changed"));
   }
   playPause() {
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
+    if (this.acceptanceRunning) {
+      new import_obsidian3.Notice("Verification is running; playback controls return in a moment.");
+      return;
+    }
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
     if (!view) return;
     let cm = view.editor.cm;
     if (cm) {
@@ -20318,7 +20325,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
       let model = parseDocument(cm.state.doc.toString(), uri, 1);
       primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
     }
-    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian2.Notice("Resumed where you left off");
+    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.session.playPause(), primeAtWord != null && new import_obsidian3.Notice("Resumed where you left off");
   }
   stopSession() {
     this.session && (this.session.stop(), this.positionThrottle.flush(), this.updateRibbon("idle"));
@@ -20345,7 +20352,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
         },
         onStop: () => this.stopSession()
       },
-      { renderIcon: (el, icon) => (0, import_obsidian2.setIcon)(el, icon) }
+      { renderIcon: (el, icon) => (0, import_obsidian3.setIcon)(el, icon) }
     ), this.pill.mount(anchor), this.pill.setState(this.session.state), this.pill.setSpeed(this.settings.speed), this.pill.setListening(this.settings.listeningMode), this.pill.setVoiceLabel(this.currentVoiceLabel()));
   }
   destroyPill() {
@@ -20366,7 +20373,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   // current speed checked, picks routed through applySpeed (persist + live audio
   // + label), plus a "Fine-tune in settings" escape hatch.
   showSpeedMenu(evt) {
-    let menu = new import_obsidian2.Menu();
+    let menu = new import_obsidian3.Menu();
     renderSpeedMenu(menu, speedMenuModel(this.settings.speed), {
       applySpeed: (speed) => {
         this.applySpeed(speed);
@@ -20396,7 +20403,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
         openSettings: () => this.openSettingsTab()
       },
       setVoiceLoading: (on) => this.pill?.setVoiceLoading(on),
-      buildMenu: () => new import_obsidian2.Menu(),
+      buildMenu: () => new import_obsidian3.Menu(),
       showMenu: (menu) => menu.showAtMouseEvent(evt)
     });
   }
@@ -20407,9 +20414,18 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, SpeakingEditorPlugin = class extends impor
   updateRibbon(state) {
     if (!this.ribbonEl) return;
     let icon = state === "playing" ? "pause" : state === "paused" ? "play" : "play-circle";
-    (0, import_obsidian2.setIcon)(this.ribbonEl, icon);
+    (0, import_obsidian3.setIcon)(this.ribbonEl, icon);
   }
   // ─── Acceptance helpers (dev-only, used by the harness) ───────────────────────
+  // True while the verification run owns the plugin; user-facing playback
+  // controls refuse gently for the duration (see playPause/stopSession).
+  acceptanceRunning = !1;
+  acceptancePositionsSnapshot() {
+    return JSON.stringify(this.positions);
+  }
+  acceptanceRestorePositions(json) {
+    this.positions = JSON.parse(json);
+  }
   // Start the plugin's own session on a specific editor so the harness can
   // exercise the real click-to-seek path (which consults listeningMode).
   acceptanceStartSession(cm, uri) {

@@ -96,12 +96,13 @@ export default class SpeakingEditorPlugin extends Plugin {
     this.addCommand({
       id: "stop",
       name: "Stop reading",
-      callback: () => this.stopSession(),
+      // guarded: the harness owns sessions while a verification run is live
+      callback: () => (this.acceptanceRunning ? undefined : this.stopSession()),
     });
     this.addCommand({
       id: "read-from-top",
       name: "Read this note from the top",
-      callback: () => this.readFromTop(),
+      callback: () => (this.acceptanceRunning ? undefined : this.readFromTop()),
     });
     this.addCommand({
       id: "toggle-listening-mode",
@@ -365,6 +366,12 @@ export default class SpeakingEditorPlugin extends Plugin {
   }
 
   private playPause() {
+    // While the dev verification run drives the plugin's own sessions, a human
+    // press would put two drivers on one editor (stacking voices). Refuse gently.
+    if (this.acceptanceRunning) {
+      new Notice("Verification is running; playback controls return in a moment.");
+      return;
+    }
     const view = this.app.workspace.getActiveViewOfType(MarkdownView);
     if (!view) return;
     const cm = (view.editor as any).cm as EditorView | undefined;
@@ -542,6 +549,18 @@ export default class SpeakingEditorPlugin extends Plugin {
   }
 
   // ─── Acceptance helpers (dev-only, used by the harness) ───────────────────────
+
+  // True while the verification run owns the plugin; user-facing playback
+  // controls refuse gently for the duration (see playPause/stopSession).
+  acceptanceRunning = false;
+
+  acceptancePositionsSnapshot(): string {
+    return JSON.stringify(this.positions);
+  }
+
+  acceptanceRestorePositions(json: string) {
+    this.positions = JSON.parse(json);
+  }
 
   // Start the plugin's own session on a specific editor so the harness can
   // exercise the real click-to-seek path (which consults listeningMode).

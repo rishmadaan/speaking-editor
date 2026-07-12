@@ -2,5 +2,12 @@
   "providerId": "edge",
   "voiceByProvider": {},
   "speed": 1.5,
-  "listeningMode": true
+  "listeningMode": true,
+  "cacheSizeMb": 200,
+  "positions": {
+    "Skeleton Note.md": {
+      "wordIndex": 0,
+      "ts": 1783870851660
+    }
+  }
 }
