@@ -4,14 +4,7 @@
 
 Keywords: read aloud, text to speech, TTS, listen to your notes, Obsidian read aloud, Speechify for Obsidian, karaoke highlighting.
 
-<!-- DEMO GIF PLACEHOLDER -->
-<!--
-  TODO (launch work, not part of this repo yet): drop the demo GIF here.
-  It should show, above the fold: pressing play, the word-by-word highlight
-  following the voice, and a click on a word jumping the reading there.
-  Replace this block with:  ![Speaking Editor in action](docs/demo.gif)
--->
-> **[ Demo GIF goes here ]** A short loop showing play, the moving word highlight, and click-to-jump. (Coming with the launch.)
+![Speaking Editor reading a note aloud with word-by-word highlighting and click-to-jump](docs/demo.gif)
 
 ## What "listening mode" means (in plain words)
 
