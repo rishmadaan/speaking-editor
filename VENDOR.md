@@ -2,7 +2,7 @@
 
 Vendored on 2026-07-12 from TalkToMeBaby (`~/labs/projects/talktomebaby`,
 MIT, same author), per the reuse map of the same date
-(`~/labs/projects/mycroft/outputs/speaking-editor-reuse-map-2026-07-12.html`).
+(`~/digos/mycroft/outputs/speaking-editor-reuse-map-2026-07-12.html`).
 Strategy: vendor now, extract later. Once Speaking Editor v1 ships and the
 APIs settle, the engine gets extracted into a standalone MIT package that
 both projects consume.
