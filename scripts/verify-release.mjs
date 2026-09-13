@@ -33,7 +33,7 @@ const packages = productionPackages(lock);
 for (const path of packages) {
   const installed = json(`${path}/package.json`);
   assert.equal(installed.version, lock.packages[path].version);
-  assert(read("THIRD_PARTY_NOTICES.md").includes(`## ${installed.name} ${installed.version}\n`), `Missing notice for ${path}`);
+  assert(read("THIRD_PARTY_NOTICES.md").replaceAll("\r\n", "\n").includes(`## ${installed.name} ${installed.version}\n`), `Missing notice for ${path}`);
 }
 for (const path of Object.keys(meta.inputs).filter(path => path.includes("node_modules/"))) {
   const packagePath = path.match(/^(.*node_modules\/(?:@[^/]+\/)?[^/]+)\//)?.[1];
