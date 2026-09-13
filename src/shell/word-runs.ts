@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Pure word-run computation, promoted verbatim from spike 2 (PASS 8/8). A word's
 // source offsets are a BOUNDING BOX (first to last clean character in the source),
 // so the box may contain markdown markers between the visible characters. cleanRuns

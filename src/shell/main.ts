@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The Speaking Editor plugin: registers the sync-field editor extension, wires a
 // ReadingSession to the active markdown view on play, mirrors state on a ribbon
 // icon, and maps clicks to seeks while a session is active (only in listening
@@ -14,7 +18,6 @@ import { ReadingSession, SessionState } from "./session";
 import { CmSurface, HighlightSurface, FollowHooks } from "./highlight-surface";
 import { RangeSurface } from "./range-surface";
 import { createReturnChip, ReturnChipHandle } from "./return-chip";
-import { runAcceptance } from "./acceptance";
 import { SpeakingEditorSettings, mergeSettings, rememberVoice, voiceForProvider } from "./settings";
 import { KeyStore } from "./key-store";
 import { availableProviders, buildProvider, providerLabel } from "./providers";
@@ -152,7 +155,7 @@ export default class SpeakingEditorPlugin extends Plugin {
         callback: () => {
           // clear any live session so the harness drives a clean editor
           this.disposeSession();
-          void runAcceptance(this.app, this);
+          void import("./acceptance").then(({ runAcceptance }) => runAcceptance(this.app, this));
         },
       });
     }

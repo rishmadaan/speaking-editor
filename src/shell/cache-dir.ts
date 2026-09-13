@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Where the audio disk cache lives: per-device, never inside any vault, never
 // synced. A pure function so the platform matrix is unit-tested without touching
 // the real filesystem. macOS keeps caches under ~/Library/Caches; elsewhere we

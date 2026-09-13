@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { FollowPolicy, SCROLLEND_FALLBACK_MS } from "./follow-policy";
 

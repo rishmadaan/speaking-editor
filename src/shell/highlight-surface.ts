@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The highlight surface seam. A ReadingSession owns the model, audio, and the
 // frame loop; where the current word actually gets PAINTED is pluggable behind
 // this interface. Live preview paints through the CM6 sync field (CmSurface,

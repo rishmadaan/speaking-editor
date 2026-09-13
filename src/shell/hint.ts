@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The first-jump teaching hint (spec 0009 point 3). Two parts, both small:
 //   1. a pure gate, shouldShowSeekHint(count), so the shell decides whether to
 //      teach, and

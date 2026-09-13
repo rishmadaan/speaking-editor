@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Pure version-bump core. No filesystem, no process access: it takes the three
 // version-carrying file contents as strings plus a target version and returns the
 // three updated strings, so the whole thing is unit-testable without touching disk.

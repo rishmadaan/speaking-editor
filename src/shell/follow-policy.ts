@@ -1,3 +1,8 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+// Inherited TalkToMeBaby MIT grant: see VENDOR.md and THIRD_PARTY_NOTICES.md.
+
 // The shared follow policy, ported from TalkToMeBaby's highlight.ts. A tiny flag
 // machine that both highlight surfaces (live preview and reading mode) drive: it
 // owns whether the reading FOLLOWS the highlight, guards our own programmatic

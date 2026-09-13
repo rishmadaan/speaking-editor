@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The Settings -> Speaking Editor tab: pick a provider and voice, set speed,
 // toggle listening mode, and store a premium key per device. Plain-language copy,
 // no jargon. Keys go through the KeyStore (localStorage) and are never rendered

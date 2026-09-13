@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // @vitest-environment happy-dom
 import { describe, it, expect } from "vitest";
 import { alignWords, AlignNode, WordRange, DEFAULT_LOOKAHEAD } from "./text-align";

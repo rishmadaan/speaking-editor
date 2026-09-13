@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The pure remaining-time label for the pill (spec 0010 point 1). The session owns
 // the timings and exposes { msPerWord, wordsLeft }; this function turns that plus
 // the current speed into a calm, dim label. msPerWord is the MEAN across every

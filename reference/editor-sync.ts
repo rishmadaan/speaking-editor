@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rish (Rishabh Madaan)
+// SPDX-License-Identifier: MIT
+// TalkToMeBaby reference only. Full original MIT notice: THIRD_PARTY_NOTICES.md.
+
 import * as vscode from "vscode";
 import { DocumentModel } from "@talktomebaby/engine/core";
 

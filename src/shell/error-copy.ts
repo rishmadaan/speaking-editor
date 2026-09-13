@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Turn a synthesis failure into human error copy plus the one way out to offer.
 // Pure: no DOM, no Notice, no Obsidian. The raw exception is never woven into the
 // sentence (it goes to console.error at the call site); the user reads a plain

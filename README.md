@@ -142,4 +142,4 @@ Speaking Editor is independent and is not affiliated with, endorsed by, or spons
 
 ## License
 
-[MIT](LICENSE), Copyright (c) 2026 Rishabh Madaan. Additional disclaimers are in [DISCLAIMER.md](DISCLAIMER.md); privacy and data-flow details are in [PRIVACY.md](PRIVACY.md); third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[GNU AGPLv3 only](LICENSE), Copyright (c) 2026 Rishabh Madaan, with an [Obsidian additional permission](LICENSE-EXCEPTION.md). See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) for scope and the transition from MIT beginning with version 0.2.0. Corresponding source accompanies each new [release](https://github.com/rishmadaan/speaking-editor/releases); [rebuild instructions](docs/RELEASING.md) are included. Additional disclaimers are in [DISCLAIMER.md](DISCLAIMER.md); privacy and data-flow details are in [PRIVACY.md](PRIVACY.md); third-party notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

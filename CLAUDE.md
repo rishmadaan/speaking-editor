@@ -1,7 +1,7 @@
-# CLAUDE.md
+# AGENTS.md
 
-Guidance for agents (Claude, Codex, Cursor) and humans working in this repo. This
-file is **mirrored with `AGENTS.md`**: change one, change the other in the same
+Guidance for agents (Codex, Claude, Cursor) and humans working in this repo. This
+file is **mirrored with `CLAUDE.md`**: change one, change the other in the same
 commit.
 
 ## What this repo is
@@ -35,8 +35,9 @@ the hard part (the engine) travels unchanged to another host later.
 
 The engine and playback brain were **vendored from TalkToMeBaby** (MIT, same author)
 on 2026-07-12; see [`VENDOR.md`](VENDOR.md) for exactly what was copied and changed.
-Strategy: vendor now, evolve freely in this repo, extract into a shared MIT package
-once v1 APIs settle.
+Strategy: vendor now, evolve here under AGPLv3 only with the Obsidian additional
+permission, and choose compatible shared-package terms when v1 APIs settle.
+Preserve original MIT grants and notices. See LICENSE-NOTICE.md and CONTRIBUTING.md.
 
 - `reference/editor-sync.ts` is VS Code-coupled reference only: **not compiled, not
   tested, do not import it.** It is the contract the shell reimplements for
@@ -90,7 +91,8 @@ absent from `--prod` bundles.
 ## Standing constraints
 
 - **No em dashes** anywhere, including generated docs and copy. Use commas, hyphens,
-  or rephrase.
+  or rephrase. Verbatim upstream license texts and archived third-party sources
+  are exempt; never rewrite their legal text to satisfy typography rules.
 - **API keys go in `localStorage`, never in `data.json`.** `data.json` is inside the
   vault and can sync; a synced vault must never carry a secret. Keys live under
   `speaking-editor:key:<provider>` via the `KeyStore`.
@@ -105,6 +107,7 @@ absent from `--prod` bundles.
 
 On a version tag (`git tag 0.2.0 && git push origin 0.2.0`),
 `.github/workflows/release.yml` runs the gates, builds `--prod`, and attaches
-`dist/main.js`, `dist/manifest.json`, and `dist/styles.css` to a GitHub release. Bump
+the three plugin assets, legal notices, and corresponding source to a GitHub
+release. Follow docs/RELEASING.md and run scripts/package-source.mjs. Bump
 versions first with `scripts/bump-version.mjs`. Creating the GitHub repo, pushing,
 and the community-list PR are deliberate human steps, not automated.

@@ -2,7 +2,7 @@
 
 Speaking Editor is provided for convenience as an open-source Obsidian plugin. To the maximum extent permitted by applicable law, you use it entirely at your own risk.
 
-This document is not legal advice. It is a user-facing disclaimer for the project and does not replace the MIT license, third-party provider terms, Obsidian's terms, or any agreement that applies to your use of a TTS provider.
+This document is not legal advice. It is a user-facing disclaimer for the project and does not replace the AGPLv3 license and Obsidian additional permission, third-party provider terms, Obsidian's terms, or any agreement that applies to your use of a TTS provider.
 
 ## No Warranty
 
@@ -62,16 +62,15 @@ To the maximum extent permitted by applicable law, the maintainers, contributors
 
 This includes, without limitation, damages or losses involving data, privacy, confidentiality, intellectual property, provider accounts, API usage, billing, subscriptions, business interruption, lost profits, lost opportunities, device problems, plugin behavior, generated audio, third-party services, or reliance on synthesized output.
 
-## Indemnity
-
-To the maximum extent permitted by applicable law, you are responsible for claims, disputes, losses, costs, damages, liabilities, and expenses, including reasonable attorneys' fees, that arise from your use or misuse of Speaking Editor, your content, your generated audio, your provider accounts, your violation of provider terms, your violation of law, or your infringement or alleged infringement of another person's rights.
-
 ## No Affiliation
 
 Speaking Editor is independent. It is not affiliated with, endorsed by, sponsored by, or approved by Obsidian, Microsoft, ElevenLabs, Speechify, Apple, or any TTS provider mentioned in the project, except where explicitly stated otherwise.
 
 All third-party names, trademarks, services, and product names belong to their respective owners and are used only for identification, compatibility, or descriptive comparison.
 
-## Acceptance
+## Relationship to the Software License
 
-By installing, running, modifying, packaging, publishing, distributing, or using Speaking Editor, you acknowledge these disclaimers and accept responsibility for your use to the maximum extent permitted by applicable law.
+This document is informational. It does not require acceptance of additional terms
+or restrict rights granted by AGPLv3 and LICENSE-EXCEPTION.md. The software license
+governs copying, modification, distribution, and corresponding-source obligations.
+Third-party services and content remain subject to their own applicable terms.

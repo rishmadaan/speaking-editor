@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The floating pill player: a rounded control cluster that hovers bottom-center of
 // the reading editor while a session exists (spec 0004). Pure DOM, no Obsidian
 // imports, so it unit-tests in happy-dom; the host (main.ts) supplies the five

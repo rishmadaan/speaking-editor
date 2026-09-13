@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The CM6 StateField that carries word entries and the current position, and paints
 // word + sentence decorations. Promoted verbatim from spike 2 (PASS 8/8), with a
 // clearAll effect added for session teardown. Every transaction remaps the entries

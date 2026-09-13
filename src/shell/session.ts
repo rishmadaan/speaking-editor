@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // One reading session: owns the parsed model, chunks, synthesis, the vendored
 // playback Engine, the rAF loop, and the audio elements. It seeds a highlight
 // SURFACE with word entries, drives the current-word paint frame-by-frame through

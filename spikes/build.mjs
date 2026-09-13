@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Build a spike plugin into the test vault's plugins directory.
 // Usage: node spikes/build.mjs <spike-dir-name>
 import { build } from "esbuild";

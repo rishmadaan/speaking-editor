@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Automated in-app acceptance checks for the walking skeleton, spike-report style.
 // Gated behind DEV_ACCEPTANCE so it never ships. Opens a fixture note in live
 // preview, drives a real ReadingSession (real Edge synthesis, real audio), runs the
@@ -113,6 +117,7 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
   const hiddenMidRun = () => document.visibilityState === "hidden";
 
   let session: ReadingSession | null = null;
+  let restoreFollowViewport = () => {};
   try {
     lines.push(
       `Environment: platform=${process.platform}, electron=${process.versions?.electron ?? "none"}, chrome=${process.versions?.chrome ?? "none"}`,
@@ -1150,6 +1155,11 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
     );
     await sleep(200);
     const bigCm: EditorView = (bigView.editor as any).cm;
+    // Fix fixture geometry: a large host window can fit over a minute of speech
+    // before any sentence needs following. This constrains only the test scroller.
+    const previousMaxHeight = bigCm.scrollDOM.style.maxHeight;
+    restoreFollowViewport = () => { bigCm.scrollDOM.style.maxHeight = previousMaxHeight; };
+    bigCm.scrollDOM.style.maxHeight = "240px";
     const bigField = () => bigCm.state.field(syncField);
     const returnChipVisible = () => !!document.querySelector(".se-return.se-return-visible");
 
@@ -1157,6 +1167,9 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
     //     stops auto-scroll: the next sentence change does not move scrollTop, and
     //     the return chip is visible.
     plugin.acceptanceClearPosition(BIG_NOTE);
+    // A known fast rate lets following cross the comfort band within check 32's
+    // time limit on taller desktop windows. The harness restores settings below.
+    plugin.settings.speed = 2;
     plugin.acceptanceStartSession(bigCm, BIG_NOTE);
     const started31 = await waitUntil(
       () => plugin.acceptanceSession()?.state === "playing" && bigField().word >= 2,
@@ -1166,6 +1179,8 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
     // self-scroll guard (a comfort-band scroll fences the next ~600ms), so this
     // lands in a clear window and breaks following exactly once.
     const brokeFollowing31 = await waitUntil(() => {
+      // Actually leave the current sentence, so returning must move the viewport.
+      bigCm.scrollDOM.scrollTop = bigCm.scrollDOM.clientHeight;
       bigCm.scrollDOM.dispatchEvent(new Event("scroll"));
       return plugin.acceptanceSession()?.following === false;
     }, 6000, 100);
@@ -1197,16 +1212,18 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
     const recentred32 = await waitUntil(() => bigCm.scrollDOM.scrollTop !== scrollBeforeReturn32, 4000);
     await sleep(600); // let the recentre settle
     const scrollAfterRecentre32 = bigCm.scrollDOM.scrollTop;
-    // following resumed: as playback continues it auto-scrolls again
+    // A tall window can fit more than 25 seconds of speech. Allow enough audio
+    // to reach an out-of-band sentence before requiring another actual scroll.
     const autoScrollsAgain32 = await waitUntil(
       () => bigCm.scrollDOM.scrollTop !== scrollAfterRecentre32,
-      25000
+      60000
     );
     check(
       "spec 0012: the return chip re-centres, hides, and following resumes (auto-scroll returns)",
       chipHidden32 && followingResumed32 && recentred32 && autoScrollsAgain32,
-      `chipHidden=${chipHidden32}, followingResumed=${followingResumed32}, recentred=${recentred32}, autoScrollsAgain=${autoScrollsAgain32}`
+      `chipHidden=${chipHidden32}, followingResumed=${followingResumed32}, recentred=${recentred32}, autoScrollsAgain=${autoScrollsAgain32}, state=${plugin.acceptanceSession()?.state}, following=${plugin.acceptanceSession()?.following}, sentence=${bigField().sentence}, scrollTop=${bigCm.scrollDOM.scrollTop}`
     );
+    restoreFollowViewport();
     plugin.acceptanceDisposeSession();
 
     // 33. Fast start: the session's (split) chunk 0 is under 700 characters and
@@ -1280,6 +1297,7 @@ export async function runAcceptance(app: App, plugin: SpeakingEditorPlugin): Pro
       /* nothing more we can do */
     }
   } finally {
+    restoreFollowViewport();
     plugin.acceptanceRunning = false;
     banner.hide();
     session?.dispose();

@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 /**
  * Spike 2: prove the load-bearing UI mechanism inside Obsidian's live-preview
  * editor (CodeMirror 6):

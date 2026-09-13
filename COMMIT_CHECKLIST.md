@@ -14,6 +14,13 @@ Run through this before every commit. It is short on purpose.
 - [ ] For editor-coupled behavior: the in-app acceptance checks pass in the test
       vault and the manual checklist for the spec is walked.
 
+## Release materials
+
+- [ ] A release includes the legal notices in the three-file plugin install and
+      the exact corresponding-source archive (see docs/RELEASING.md).
+- [ ] Package, lockfile, manifest, and release tag versions agree.
+- [ ] Dependency notices and supplemental source snapshots match the lockfile.
+
 ## Content
 
 - [ ] **No em dashes** anywhere in the diff (code, docs, copy). Grep the changed

@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Construct the vendored provider adapters from a provider id + the key store,
 // and surface the subset of the catalog this slice supports. The parent product
 // defaults macOS to "say" for reliability; Speaking Editor's identity is exact

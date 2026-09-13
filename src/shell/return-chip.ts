@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The "Return to reading" chip (spec 0012 Part 1 point 3). A small floating
 // affordance that appears when the user scrolls away mid-listen and following
 // breaks; clicking it re-engages following and snaps the current sentence back to
