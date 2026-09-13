@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Per-device API key storage. Keys NEVER enter data.json (a synced vault must
 // never carry a secret); they live only in localStorage under a namespaced key.
 // Wrapped behind an injectable Storage-like interface so it is unit-testable

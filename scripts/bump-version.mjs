@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Bump the plugin version across manifest.json, versions.json, and package.json in
 // one step, keeping them in lockstep (the standard obsidian-plugin release chore).
 // All the logic lives in the pure, unit-tested core (bump-version-lib.mjs); this

@@ -1,3 +1,8 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+// Inherited TalkToMeBaby MIT grant: see VENDOR.md and THIRD_PARTY_NOTICES.md.
+
 /**
  * Race `promise` against a timer. If the timer fires first, return `fallback`.
  * The original promise continues running — callers that need to cancel it must

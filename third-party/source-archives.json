@@ -1,0 +1,34 @@
+[
+  {
+    "name": "msedge-tts",
+    "version": "2.0.7",
+    "file": "third-party/sources/msedge-tts-2.0.7.tar.gz",
+    "commit": "a659d32984d471e72e33fb37fc92daf6001a0cfd",
+    "url": "https://codeload.github.com/Migushthe2nd/MsEdgeTTS/tar.gz/a659d32984d471e72e33fb37fc92daf6001a0cfd",
+    "sha256": "535d52929c1d030f9f74dde7f664cf6e6882cb230262c5652c38918c469fcf36"
+  },
+  {
+    "name": "https-proxy-agent",
+    "version": "5.0.1",
+    "file": "third-party/sources/https-proxy-agent-5.0.1.tar.gz",
+    "commit": "d0d80cc0482f20495aa8595f802e1a9f3b1b3409",
+    "url": "https://codeload.github.com/TooTallNate/node-https-proxy-agent/tar.gz/d0d80cc0482f20495aa8595f802e1a9f3b1b3409",
+    "sha256": "a5f198b7bd57a8c2e9500d7f9782bc16aa6d419534560c305a27f9b86e962534"
+  },
+  {
+    "name": "agent-base",
+    "version": "6.0.2",
+    "file": "third-party/sources/agent-base-6.0.2.tar.gz",
+    "commit": "c4b8ea2e1a11bae023bb09b708050a50418204e9",
+    "url": "https://codeload.github.com/TooTallNate/node-agent-base/tar.gz/c4b8ea2e1a11bae023bb09b708050a50418204e9",
+    "sha256": "526c6c08c5e83d741fc67b6aa2a04179e79a5073b96fe2be56e63f6b8fc7426a"
+  },
+  {
+    "name": "axios",
+    "version": "1.18.1",
+    "file": "third-party/sources/axios-1.18.1.tar.gz",
+    "commit": "a209bfb1e5dcbce3cecbf4bd955339d006358887",
+    "url": "https://codeload.github.com/axios/axios/tar.gz/a209bfb1e5dcbce3cecbf4bd955339d006358887",
+    "sha256": "5e3c4e964ea3ad1287021e2a9111c3aba7192e72e9d8ca465804de9f3ab2fa26"
+  }
+]

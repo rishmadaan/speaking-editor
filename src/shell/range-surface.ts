@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The reading-mode highlight surface: paints the current word and sentence on the
 // rendered (preview) note through the CSS Custom Highlight API, with NO DOM
 // mutation of the note (no span wrapping). At seed time it walks the reading

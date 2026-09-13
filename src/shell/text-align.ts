@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The text-alignment walker: a pure function that maps the document model's word
 // sequence onto a rendered reading-mode DOM, expressed as an abstract text-node
 // list so it is driven by happy-dom in tests and by real Text nodes at runtime.

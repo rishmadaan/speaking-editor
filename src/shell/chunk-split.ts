@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Fast-start splitter (spec 0012 Part 2 point 1). Time-to-first-audio on a cold
 // big note is dominated by synthesizing the whole first chunk before a single
 // word can play. This splits an oversized chunk 0 at the first sentence boundary

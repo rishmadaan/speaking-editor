@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // The persisted settings model (goes to data.json via saveData). Pure functions
 // and types only: no api keys ever live here (keys go to the KeyStore /
 // localStorage), so a synced vault never carries a secret. Per-provider voice

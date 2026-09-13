@@ -33,7 +33,7 @@ The roadmap after v1. Everything here was discussed and deliberately deferred so
 
 ## Engine
 
-- **Engine extraction.** Once the v1 APIs settle, extract the vendored engine (`src/engine/`, `src/playback/`) into a standalone MIT package that both TalkToMeBaby and Speaking Editor consume, closing the long-standing engine-extraction thread. Extraction later is cheap; coordination now would be expensive (see [VENDOR.md](VENDOR.md)).
+- **Engine extraction.** Once the v1 APIs settle, extract the vendored engine (`src/engine/`, `src/playback/`) into a shared package under explicitly chosen compatible terms that both TalkToMeBaby and Speaking Editor can consume, closing the long-standing engine-extraction thread. Extraction later is cheap; coordination now would be expensive (see [VENDOR.md](VENDOR.md)).
 
 ## Further horizons (separate decisions, with lived data)
 

@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 import { describe, it, expect } from "vitest";
 import { speedMenuModel, voiceMenuModel, formatSpeedTitle } from "./pill-menus";
 import { SPEED_PRESETS } from "./player-pill";

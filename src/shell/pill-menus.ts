@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Menu models for the pill's speed and voice controls, plus the tiny Obsidian
 // Menu renderers over them and the async voice-menu flow. The MODELS carry all
 // the logic (titles, checked flags, needs-key routing) and are unit-tested; the

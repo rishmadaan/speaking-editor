@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Per-note reading position: where the listener left off, so play resumes there.
 // Pure logic only (no Obsidian, no fs): the map lives in data.json and syncs
 // across devices intentionally (a position is not a secret, and remembering it

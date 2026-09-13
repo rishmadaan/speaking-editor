@@ -1,8 +1,8 @@
 {
   "name": "speaking-editor",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "description": "Word-synced read-aloud inside Obsidian's native editor. Read aloud, text to speech, listen to your notes.",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE-NOTICE.md",
   "private": true,
   "scripts": {
     "test": "vitest run",

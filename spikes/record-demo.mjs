@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Record the README demo GIF: drive a choreographed Speaking Editor session in
 // the test vault and capture it via CDP screencast, then assemble frames with
 // ffmpeg (palette pass for quality). Usage: node spikes/record-demo.mjs

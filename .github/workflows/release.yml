@@ -5,7 +5,7 @@ name: Release
 # The three built artifacts (main.js, manifest.json, styles.css) are attached to the
 # release: those are exactly the files a user drops into
 # <vault>/.obsidian/plugins/speaking-editor/, and the files the Obsidian community
-# updater fetches.
+# updater fetches. Legal notices and corresponding source accompany those assets.
 on:
   push:
     tags:
@@ -46,6 +46,20 @@ jobs:
           fi
           echo "acceptance harness absent from prod bundle"
 
+      - name: Verify legal materials and package corresponding source
+        run: node scripts/package-source.mjs
+
+      - name: Rebuild from the source archive
+        run: |
+          source_check="$(mktemp -d)"
+          tar -xzf "dist/speaking-editor-${GITHUB_REF_NAME}-source.tar.gz" -C "$source_check"
+          cd "$source_check/speaking-editor-${GITHUB_REF_NAME}"
+          npm ci
+          npx vitest run
+          npx tsc -p tsconfig.json --noEmit
+          node build.mjs --prod
+          node scripts/verify-release.mjs
+
       - name: Create release with plugin assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,5 +67,8 @@ jobs:
         run: |
           gh release create "$TAG" \
             --title "$TAG" \
+            --notes-file dist/release-notes.md \
             --generate-notes \
-            dist/main.js dist/manifest.json dist/styles.css
+            dist/main.js dist/manifest.json dist/styles.css \
+            dist/LICENSE dist/LICENSE-NOTICE.md dist/LICENSE-EXCEPTION.md \
+            dist/THIRD_PARTY_NOTICES.md "dist/speaking-editor-${TAG}-source.tar.gz"

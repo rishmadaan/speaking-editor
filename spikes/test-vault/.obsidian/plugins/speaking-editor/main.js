@@ -1,3 +1,1451 @@
+// Speaking Editor 0.2.0
+// Corresponding source for published releases: https://github.com/rishmadaan/speaking-editor/releases/download/0.2.0/speaking-editor-0.2.0-source.tar.gz
+// For modified distributions, provide the matching corresponding source.
+//
+// LICENSE
+//
+// GNU AFFERO GENERAL PUBLIC LICENSE
+// Version 3, 19 November 2007
+//
+// Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+//
+// Everyone is permitted to copy and distribute verbatim copies of this license document, but changing it is not allowed.
+//
+//                             Preamble
+//
+// The GNU Affero General Public License is a free, copyleft license for software and other kinds of works, specifically designed to ensure cooperation with the community in the case of network server software.
+//
+// The licenses for most software and other practical works are designed to take away your freedom to share and change the works.  By contrast, our General Public Licenses are intended to guarantee your freedom to share and change all versions of a program--to make sure it remains free software for all its users.
+//
+// When we speak of free software, we are referring to freedom, not price.  Our General Public Licenses are designed to make sure that you have the freedom to distribute copies of free software (and charge for them if you wish), that you receive source code or can get it if you want it, that you can change the software or use pieces of it in new free programs, and that you know you can do these things.
+//
+// Developers that use our General Public Licenses protect your rights with two steps: (1) assert copyright on the software, and (2) offer you this License which gives you legal permission to copy, distribute and/or modify the software.
+//
+// A secondary benefit of defending all users' freedom is that improvements made in alternate versions of the program, if they receive widespread use, become available for other developers to incorporate.  Many developers of free software are heartened and encouraged by the resulting cooperation.  However, in the case of software used on network servers, this result may fail to come about. The GNU General Public License permits making a modified version and letting the public access it on a server without ever releasing its source code to the public.
+//
+// The GNU Affero General Public License is designed specifically to ensure that, in such cases, the modified source code becomes available to the community.  It requires the operator of a network server to provide the source code of the modified version running there to the users of that server.  Therefore, public use of a modified version, on a publicly accessible server, gives the public access to the source code of the modified version.
+//
+// An older license, called the Affero General Public License and published by Affero, was designed to accomplish similar goals.  This is a different license, not a version of the Affero GPL, but Affero has released a new version of the Affero GPL which permits relicensing under this license.
+//
+// The precise terms and conditions for copying, distribution and modification follow.
+//
+//                        TERMS AND CONDITIONS
+//
+// 0. Definitions.
+//
+// "This License" refers to version 3 of the GNU Affero General Public License.
+//
+// "Copyright" also means copyright-like laws that apply to other kinds of works, such as semiconductor masks.
+//
+// "The Program" refers to any copyrightable work licensed under this License.  Each licensee is addressed as "you".  "Licensees" and "recipients" may be individuals or organizations.
+//
+// To "modify" a work means to copy from or adapt all or part of the work in a fashion requiring copyright permission, other than the making of an exact copy.  The resulting work is called a "modified version" of the earlier work or a work "based on" the earlier work.
+//
+// A "covered work" means either the unmodified Program or a work based on the Program.
+//
+// To "propagate" a work means to do anything with it that, without permission, would make you directly or secondarily liable for infringement under applicable copyright law, except executing it on a computer or modifying a private copy.  Propagation includes copying, distribution (with or without modification), making available to the public, and in some countries other activities as well.
+//
+// To "convey" a work means any kind of propagation that enables other parties to make or receive copies.  Mere interaction with a user through a computer network, with no transfer of a copy, is not conveying.
+//
+// An interactive user interface displays "Appropriate Legal Notices" to the extent that it includes a convenient and prominently visible feature that (1) displays an appropriate copyright notice, and (2) tells the user that there is no warranty for the work (except to the extent that warranties are provided), that licensees may convey the work under this License, and how to view a copy of this License.  If the interface presents a list of user commands or options, such as a menu, a prominent item in the list meets this criterion.
+//
+// 1. Source Code.
+// The "source code" for a work means the preferred form of the work for making modifications to it.  "Object code" means any non-source form of a work.
+//
+// A "Standard Interface" means an interface that either is an official standard defined by a recognized standards body, or, in the case of interfaces specified for a particular programming language, one that is widely used among developers working in that language.
+//
+// The "System Libraries" of an executable work include anything, other than the work as a whole, that (a) is included in the normal form of packaging a Major Component, but which is not part of that Major Component, and (b) serves only to enable use of the work with that Major Component, or to implement a Standard Interface for which an implementation is available to the public in source code form.  A "Major Component", in this context, means a major essential component (kernel, window system, and so on) of the specific operating system (if any) on which the executable work runs, or a compiler used to produce the work, or an object code interpreter used to run it.
+//
+// The "Corresponding Source" for a work in object code form means all the source code needed to generate, install, and (for an executable work) run the object code and to modify the work, including scripts to control those activities.  However, it does not include the work's System Libraries, or general-purpose tools or generally available free programs which are used unmodified in performing those activities but which are not part of the work.  For example, Corresponding Source includes interface definition files associated with source files for the work, and the source code for shared libraries and dynamically linked subprograms that the work is specifically designed to require, such as by intimate data communication or control flow between those
+// subprograms and other parts of the work.
+//
+// The Corresponding Source need not include anything that users can regenerate automatically from other parts of the Corresponding Source.
+//
+// The Corresponding Source for a work in source code form is that same work.
+//
+// 2. Basic Permissions.
+// All rights granted under this License are granted for the term of copyright on the Program, and are irrevocable provided the stated conditions are met.  This License explicitly affirms your unlimited permission to run the unmodified Program.  The output from running a covered work is covered by this License only if the output, given its content, constitutes a covered work.  This License acknowledges your rights of fair use or other equivalent, as provided by copyright law.
+//
+// You may make, run and propagate covered works that you do not convey, without conditions so long as your license otherwise remains in force.  You may convey covered works to others for the sole purpose of having them make modifications exclusively for you, or provide you with facilities for running those works, provided that you comply with the terms of this License in conveying all material for which you do not control copyright.  Those thus making or running the covered works for you must do so exclusively on your behalf, under your direction and control, on terms that prohibit them from making any copies of your copyrighted material outside their relationship with you.
+//
+// Conveying under any other circumstances is permitted solely under the conditions stated below.  Sublicensing is not allowed; section 10 makes it unnecessary.
+//
+// 3. Protecting Users' Legal Rights From Anti-Circumvention Law.
+// No covered work shall be deemed part of an effective technological measure under any applicable law fulfilling obligations under article 11 of the WIPO copyright treaty adopted on 20 December 1996, or similar laws prohibiting or restricting circumvention of such measures.
+//
+// When you convey a covered work, you waive any legal power to forbid circumvention of technological measures to the extent such circumvention is effected by exercising rights under this License with respect to the covered work, and you disclaim any intention to limit operation or modification of the work as a means of enforcing, against the work's users, your or third parties' legal rights to forbid circumvention of technological measures.
+//
+// 4. Conveying Verbatim Copies.
+// You may convey verbatim copies of the Program's source code as you receive it, in any medium, provided that you conspicuously and appropriately publish on each copy an appropriate copyright notice; keep intact all notices stating that this License and any non-permissive terms added in accord with section 7 apply to the code; keep intact all notices of the absence of any warranty; and give all recipients a copy of this License along with the Program.
+//
+// You may charge any price or no price for each copy that you convey, and you may offer support or warranty protection for a fee.
+//
+// 5. Conveying Modified Source Versions.
+// You may convey a work based on the Program, or the modifications to produce it from the Program, in the form of source code under the terms of section 4, provided that you also meet all of these conditions:
+//
+//     a) The work must carry prominent notices stating that you modified it, and giving a relevant date.
+//
+//     b) The work must carry prominent notices stating that it is released under this License and any conditions added under section 7.  This requirement modifies the requirement in section 4 to "keep intact all notices".
+//
+//     c) You must license the entire work, as a whole, under this License to anyone who comes into possession of a copy.  This License will therefore apply, along with any applicable section 7 additional terms, to the whole of the work, and all its parts, regardless of how they are packaged.  This License gives no permission to license the work in any other way, but it does not invalidate such permission if you have separately received it.
+//
+//     d) If the work has interactive user interfaces, each must display Appropriate Legal Notices; however, if the Program has interactive interfaces that do not display Appropriate Legal Notices, your work need not make them do so.
+//
+// A compilation of a covered work with other separate and independent works, which are not by their nature extensions of the covered work, and which are not combined with it such as to form a larger program, in or on a volume of a storage or distribution medium, is called an "aggregate" if the compilation and its resulting copyright are not used to limit the access or legal rights of the compilation's users beyond what the individual works permit.  Inclusion of a covered work in an aggregate does not cause this License to apply to the other parts of the aggregate.
+//
+// 6. Conveying Non-Source Forms.
+// You may convey a covered work in object code form under the terms of sections 4 and 5, provided that you also convey the machine-readable Corresponding Source under the terms of this License, in one of these ways:
+//
+//     a) Convey the object code in, or embodied in, a physical product (including a physical distribution medium), accompanied by the Corresponding Source fixed on a durable physical medium customarily used for software interchange.
+//
+//     b) Convey the object code in, or embodied in, a physical product (including a physical distribution medium), accompanied by a written offer, valid for at least three years and valid for as long as you offer spare parts or customer support for that product model, to give anyone who possesses the object code either (1) a copy of the Corresponding Source for all the software in the product that is covered by this License, on a durable physical medium customarily used for software interchange, for a price no more than your reasonable cost of physically performing this conveying of source, or (2) access to copy the Corresponding Source from a network server at no charge.
+//
+//     c) Convey individual copies of the object code with a copy of the written offer to provide the Corresponding Source.  This alternative is allowed only occasionally and noncommercially, and only if you received the object code with such an offer, in accord with subsection 6b.
+//
+//     d) Convey the object code by offering access from a designated place (gratis or for a charge), and offer equivalent access to the Corresponding Source in the same way through the same place at no further charge.  You need not require recipients to copy the Corresponding Source along with the object code.  If the place to copy the object code is a network server, the Corresponding Source may be on a different server (operated by you or a third party) that supports equivalent copying facilities, provided you maintain clear directions next to the object code saying where to find the Corresponding Source.  Regardless of what server hosts the Corresponding Source, you remain obligated to ensure that it is available for as long as needed to satisfy these requirements.
+//
+//     e) Convey the object code using peer-to-peer transmission, provided you inform other peers where the object code and Corresponding Source of the work are being offered to the general public at no charge under subsection 6d.
+//
+// A separable portion of the object code, whose source code is excluded from the Corresponding Source as a System Library, need not be included in conveying the object code work.
+//
+// A "User Product" is either (1) a "consumer product", which means any tangible personal property which is normally used for personal, family, or household purposes, or (2) anything designed or sold for incorporation into a dwelling.  In determining whether a product is a consumer product, doubtful cases shall be resolved in favor of coverage.  For a particular product received by a particular user, "normally used" refers to a typical or common use of that class of product, regardless of the status of the particular user or of the way in which the particular user actually uses, or expects or is expected to use, the product.  A product is a consumer product regardless of whether the product has substantial commercial, industrial or non-consumer uses, unless such uses represent the only significant mode of use of the product.
+//
+// "Installation Information" for a User Product means any methods, procedures, authorization keys, or other information required to install and execute modified versions of a covered work in that User Product from a modified version of its Corresponding Source.  The information must suffice to ensure that the continued functioning of the modified object code is in no case prevented or interfered with solely because modification has been made.
+//
+// If you convey an object code work under this section in, or with, or specifically for use in, a User Product, and the conveying occurs as part of a transaction in which the right of possession and use of the User Product is transferred to the recipient in perpetuity or for a fixed term (regardless of how the transaction is characterized), the Corresponding Source conveyed under this section must be accompanied by the Installation Information.  But this requirement does not apply if neither you nor any third party retains the ability to install modified object code on the User Product (for example, the work has been installed in ROM).
+//
+// The requirement to provide Installation Information does not include a requirement to continue to provide support service, warranty, or updates for a work that has been modified or installed by the recipient, or for the User Product in which it has been modified or installed.  Access to a network may be denied when the modification itself materially and adversely affects the operation of the network or violates the rules and protocols for communication across the network.
+//
+// Corresponding Source conveyed, and Installation Information provided, in accord with this section must be in a format that is publicly documented (and with an implementation available to the public in source code form), and must require no special password or key for unpacking, reading or copying.
+//
+// 7. Additional Terms.
+// "Additional permissions" are terms that supplement the terms of this License by making exceptions from one or more of its conditions. Additional permissions that are applicable to the entire Program shall be treated as though they were included in this License, to the extent that they are valid under applicable law.  If additional permissions apply only to part of the Program, that part may be used separately under those permissions, but the entire Program remains governed by this License without regard to the additional permissions.
+//
+// When you convey a copy of a covered work, you may at your option remove any additional permissions from that copy, or from any part of it.  (Additional permissions may be written to require their own removal in certain cases when you modify the work.)  You may place additional permissions on material, added by you to a covered work, for which you have or can give appropriate copyright permission.
+//
+// Notwithstanding any other provision of this License, for material you add to a covered work, you may (if authorized by the copyright holders of that material) supplement the terms of this License with terms:
+//
+//     a) Disclaiming warranty or limiting liability differently from the terms of sections 15 and 16 of this License; or
+//
+//     b) Requiring preservation of specified reasonable legal notices or author attributions in that material or in the Appropriate Legal Notices displayed by works containing it; or
+//
+//     c) Prohibiting misrepresentation of the origin of that material, or requiring that modified versions of such material be marked in reasonable ways as different from the original version; or
+//
+//     d) Limiting the use for publicity purposes of names of licensors or authors of the material; or
+//
+//     e) Declining to grant rights under trademark law for use of some trade names, trademarks, or service marks; or
+//
+//     f) Requiring indemnification of licensors and authors of that material by anyone who conveys the material (or modified versions of it) with contractual assumptions of liability to the recipient, for any liability that these contractual assumptions directly impose on those licensors and authors.
+//
+// All other non-permissive additional terms are considered "further restrictions" within the meaning of section 10.  If the Program as you received it, or any part of it, contains a notice stating that it is governed by this License along with a term that is a further restriction, you may remove that term.  If a license document contains a further restriction but permits relicensing or conveying under this License, you may add to a covered work material governed by the terms of that license document, provided that the further restriction does not survive such relicensing or conveying.
+//
+// If you add terms to a covered work in accord with this section, you must place, in the relevant source files, a statement of the additional terms that apply to those files, or a notice indicating where to find the applicable terms.
+//
+// Additional terms, permissive or non-permissive, may be stated in the form of a separately written license, or stated as exceptions; the above requirements apply either way.
+//
+// 8. Termination.
+//
+// You may not propagate or modify a covered work except as expressly provided under this License.  Any attempt otherwise to propagate or modify it is void, and will automatically terminate your rights under this License (including any patent licenses granted under the third paragraph of section 11).
+//
+// However, if you cease all violation of this License, then your license from a particular copyright holder is reinstated (a) provisionally, unless and until the copyright holder explicitly and finally terminates your license, and (b) permanently, if the copyright holder fails to notify you of the violation by some reasonable means prior to 60 days after the cessation.
+//
+// Moreover, your license from a particular copyright holder is reinstated permanently if the copyright holder notifies you of the violation by some reasonable means, this is the first time you have received notice of violation of this License (for any work) from that copyright holder, and you cure the violation prior to 30 days after your receipt of the notice.
+//
+// Termination of your rights under this section does not terminate the licenses of parties who have received copies or rights from you under this License.  If your rights have been terminated and not permanently reinstated, you do not qualify to receive new licenses for the same material under section 10.
+//
+// 9. Acceptance Not Required for Having Copies.
+//
+// You are not required to accept this License in order to receive or run a copy of the Program.  Ancillary propagation of a covered work occurring solely as a consequence of using peer-to-peer transmission to receive a copy likewise does not require acceptance.  However, nothing other than this License grants you permission to propagate or modify any covered work.  These actions infringe copyright if you do not accept this License.  Therefore, by modifying or propagating a covered work, you indicate your acceptance of this License to do so.
+//
+// 10. Automatic Licensing of Downstream Recipients.
+//
+// Each time you convey a covered work, the recipient automatically receives a license from the original licensors, to run, modify and propagate that work, subject to this License.  You are not responsible for enforcing compliance by third parties with this License.
+//
+// An "entity transaction" is a transaction transferring control of an organization, or substantially all assets of one, or subdividing an organization, or merging organizations.  If propagation of a covered work results from an entity transaction, each party to that transaction who receives a copy of the work also receives whatever licenses to the work the party's predecessor in interest had or could give under the previous paragraph, plus a right to possession of the Corresponding Source of the work from the predecessor in interest, if the predecessor has it or can get it with reasonable efforts.
+//
+// You may not impose any further restrictions on the exercise of the rights granted or affirmed under this License.  For example, you may not impose a license fee, royalty, or other charge for exercise of rights granted under this License, and you may not initiate litigation (including a cross-claim or counterclaim in a lawsuit) alleging that any patent claim is infringed by making, using, selling, offering for sale, or importing the Program or any portion of it.
+//
+// 11. Patents.
+//
+// A "contributor" is a copyright holder who authorizes use under this License of the Program or a work on which the Program is based.  The work thus licensed is called the contributor's "contributor version".
+//
+// A contributor's "essential patent claims" are all patent claims owned or controlled by the contributor, whether already acquired or hereafter acquired, that would be infringed by some manner, permitted by this License, of making, using, or selling its contributor version, but do not include claims that would be infringed only as a consequence of further modification of the contributor version.  For purposes of this definition, "control" includes the right to grant patent sublicenses in a manner consistent with the requirements of this License.
+//
+// Each contributor grants you a non-exclusive, worldwide, royalty-free patent license under the contributor's essential patent claims, to make, use, sell, offer for sale, import and otherwise run, modify and propagate the contents of its contributor version.
+//
+// In the following three paragraphs, a "patent license" is any express agreement or commitment, however denominated, not to enforce a patent (such as an express permission to practice a patent or covenant not to sue for patent infringement).  To "grant" such a patent license to a party means to make such an agreement or commitment not to enforce a patent against the party.
+//
+// If you convey a covered work, knowingly relying on a patent license, and the Corresponding Source of the work is not available for anyone to copy, free of charge and under the terms of this License, through a publicly available network server or other readily accessible means, then you must either (1) cause the Corresponding Source to be so available, or (2) arrange to deprive yourself of the benefit of the patent license for this particular work, or (3) arrange, in a manner consistent with the requirements of this License, to extend the patent
+// license to downstream recipients.  "Knowingly relying" means you have actual knowledge that, but for the patent license, your conveying the covered work in a country, or your recipient's use of the covered work in a country, would infringe one or more identifiable patents in that country that you have reason to believe are valid.
+//
+// If, pursuant to or in connection with a single transaction or arrangement, you convey, or propagate by procuring conveyance of, a covered work, and grant a patent license to some of the parties receiving the covered work authorizing them to use, propagate, modify or convey a specific copy of the covered work, then the patent license you grant is automatically extended to all recipients of the covered work and works based on it.
+//
+// A patent license is "discriminatory" if it does not include within the scope of its coverage, prohibits the exercise of, or is conditioned on the non-exercise of one or more of the rights that are specifically granted under this License.  You may not convey a covered work if you are a party to an arrangement with a third party that is in the business of distributing software, under which you make payment to the third party based on the extent of your activity of conveying the work, and under which the third party grants, to any of the parties who would receive the covered work from you, a discriminatory patent license (a) in connection with copies of the covered work conveyed by you (or copies made from those copies), or (b) primarily for and in connection with specific products or compilations that contain the covered work, unless you entered into that arrangement, or that patent license was granted, prior to 28 March 2007.
+//
+// Nothing in this License shall be construed as excluding or limiting any implied license or other defenses to infringement that may otherwise be available to you under applicable patent law.
+//
+// 12. No Surrender of Others' Freedom.
+//
+// If conditions are imposed on you (whether by court order, agreement or otherwise) that contradict the conditions of this License, they do not excuse you from the conditions of this License.  If you cannot convey a covered work so as to satisfy simultaneously your obligations under this License and any other pertinent obligations, then as a consequence you may
+// not convey it at all.  For example, if you agree to terms that obligate you to collect a royalty for further conveying from those to whom you convey the Program, the only way you could satisfy both those terms and this License would be to refrain entirely from conveying the Program.
+//
+// 13. Remote Network Interaction; Use with the GNU General Public License.
+//
+// Notwithstanding any other provision of this License, if you modify the Program, your modified version must prominently offer all users interacting with it remotely through a computer network (if your version supports such interaction) an opportunity to receive the Corresponding Source of your version by providing access to the Corresponding Source from a network server at no charge, through some standard or customary means of facilitating copying of software.  This Corresponding Source shall include the Corresponding Source for any work covered by version 3 of the GNU General Public License that is incorporated pursuant to the following paragraph.
+//
+// Notwithstanding any other provision of this License, you have permission to link or combine any covered work with a work licensed under version 3 of the GNU General Public License into a single combined work, and to convey the resulting work.  The terms of this License will continue to apply to the part which is the covered work, but the work with which it is combined will remain governed by version 3 of the GNU General Public License.
+//
+// 14. Revised Versions of this License.
+//
+// The Free Software Foundation may publish revised and/or new versions of the GNU Affero General Public License from time to time.  Such new versions will be similar in spirit to the present version, but may differ in detail to address new problems or concerns.
+//
+// Each version is given a distinguishing version number.  If the Program specifies that a certain numbered version of the GNU Affero General Public License "or any later version" applies to it, you have the option of following the terms and conditions either of that numbered version or of any later version published by the Free Software Foundation.  If the Program does not specify a version number of the GNU Affero General Public License, you may choose any version ever published by the Free Software Foundation.
+//
+// If the Program specifies that a proxy can decide which future versions of the GNU Affero General Public License can be used, that proxy's public statement of acceptance of a version permanently authorizes you to choose that version for the Program.
+//
+// Later license versions may give you additional or different permissions.  However, no additional obligations are imposed on any author or copyright holder as a result of your choosing to follow a later version.
+//
+// 15. Disclaimer of Warranty.
+//
+// THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+//
+// 16. Limitation of Liability.
+//
+// IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+//
+// 17. Interpretation of Sections 15 and 16.
+//
+// If the disclaimer of warranty and limitation of liability provided above cannot be given local legal effect according to their terms, reviewing courts shall apply local law that most closely approximates an absolute waiver of all civil liability in connection with the Program, unless a warranty or assumption of liability accompanies a copy of the Program in return for a fee.
+//
+// END OF TERMS AND CONDITIONS
+//
+//             How to Apply These Terms to Your New Programs
+//
+// If you develop a new program, and you want it to be of the greatest possible use to the public, the best way to achieve this is to make it free software which everyone can redistribute and change under these terms.
+//
+// To do so, attach the following notices to the program.  It is safest to attach them to the start of each source file to most effectively state the exclusion of warranty; and each file should have at least the "copyright" line and a pointer to where the full notice is found.
+//
+//      <one line to give the program's name and a brief idea of what it does.>
+//      Copyright (C) <year>  <name of author>
+//
+//      This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+//
+//      This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+//
+//      You should have received a copy of the GNU Affero General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Also add information on how to contact you by electronic and paper mail.
+//
+// If your software can interact with users remotely through a computer network, you should also make sure that it provides a way for users to get its source.  For example, if your program is a web application, its interface could display a "Source" link that leads users to an archive of the code.  There are many ways you could offer source, and different solutions will be better for different programs; see section 13 for the specific requirements.
+//
+// You should also get your employer (if you work as a programmer) or school, if any, to sign a "copyright disclaimer" for the program, if necessary. For more information on this, and how to apply and follow the GNU AGPL, see <http://www.gnu.org/licenses/>.
+//
+//
+// LICENSE-NOTICE.md
+//
+// # Speaking Editor license notice
+//
+// Copyright (c) 2026 Rishabh Madaan
+//
+// Speaking Editor is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Affero General Public License as published by the Free
+// Software Foundation, version 3 only (AGPL-3.0-only), with the additional
+// permission in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) for use with Obsidian.
+//
+// Speaking Editor is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See [LICENSE](LICENSE) for the complete license.
+//
+// ## Scope and history
+//
+// These terms apply to first-party source, tests, build scripts, styles,
+// configuration, documentation, and project-owned artwork, including new changes
+// to the engine. This notice also covers files that cannot contain comments, such
+// as JSON files and the demo GIF. Third-party material retains its original terms;
+// see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [VENDOR.md](VENDOR.md).
+//
+// Version 0.2.0 is the first version prepared under these terms. Version v0.1.0 and
+// earlier MIT-licensed copies remain available under their original MIT grant.
+// This change does not revoke those grants. The original MIT terms for inherited
+// TalkToMeBaby code are preserved in THIRD_PARTY_NOTICES.md; new changes here are
+// covered by this notice. The TalkToMeBaby project is not relicensed by this change.
+//
+// ## Source and redistribution
+//
+// The repository is https://github.com/rishmadaan/speaking-editor.
+// Each release from 0.2.0 provides a corresponding-source archive alongside the
+// plugin assets at https://github.com/rishmadaan/speaking-editor/releases.
+// See [docs/RELEASING.md](docs/RELEASING.md) for contents and rebuild instructions.
+//
+// Commercial use and redistribution are permitted under the license. If you
+// distribute a modified plugin, provide its corresponding source under the
+// applicable terms. If your modified version supports users interacting with it
+// remotely over a network, AGPLv3 section 13 requires offering those users its
+// corresponding source. Simply making requests to a separate TTS service does not
+// by itself license that service under AGPL. This software license does not change
+// the rights in your notes or automatically apply to generated audio.
+//
+// The complete license governs these summaries. DISCLAIMER.md supplies information
+// about use and third-party services, not additional conditions on AGPL rights.
+//
+//
+// LICENSE-EXCEPTION.md
+//
+// # Obsidian additional permission
+//
+// Additional permission under section 7 of the GNU Affero General Public License,
+// version 3.
+//
+// The copyright holders of Speaking Editor grant you permission to combine
+// Speaking Editor with the official Obsidian application, as distributed by
+// Dynalist Inc., through Obsidian's plugin API, and to convey the resulting work.
+// The terms of the GNU Affero General Public License, version 3, continue to apply
+// to Speaking Editor and its modifications. You are not required by that license
+// to provide the source code of Obsidian solely because of this combination.
+//
+// This permission does not grant any rights to Obsidian itself. Its own license
+// continues to apply. It does not waive the corresponding-source obligations for
+// Speaking Editor, including modified versions that support remote interaction.
+//
+// This permission applies only to material whose copyright holders have granted
+// it. Third-party components retain their own licenses and notices. You may remove
+// this additional permission from your copy as provided by AGPLv3 section 7.
+//
+//
+// THIRD_PARTY_NOTICES.md
+//
+// # Third-Party Notices
+//
+// Speaking Editor uses AGPLv3 only with the Obsidian additional permission. These
+// terms do not replace the original licenses below. See LICENSE-NOTICE.md.
+//
+// ## Vendored Engine and Reference (TalkToMeBaby)
+//
+// The engine, playback brain and tests, and reference/editor-sync.ts originated
+// in TalkToMeBaby (MIT, same author). See VENDOR.md for paths and changes.
+// The original MIT grant remains in effect for inherited code. Future changes here
+// use the terms in LICENSE-NOTICE.md; shared extraction no longer promises MIT.
+//
+// Copyright (c) 2026 Rishabh Madaan
+//
+// Original upstream notice, preserved verbatim:
+//
+// MIT License
+//
+// Copyright (c) 2026 Rish
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// ## Runtime dependency inventory
+//
+// The following locked runtime packages are included in the source archive. This
+// inventory includes the full runtime dependency tree, even when a package is
+// partially bundled, inlined by another package, or removed by the bundler. Build
+// metadata is checked against this inventory. Copyright and license text follow
+// for each package; these permissive grants remain intact.
+//
+// ## agent-base 6.0.2
+//
+// License: MIT. Package: https://www.npmjs.com/package/agent-base/v/6.0.2
+//
+// (The MIT License)
+//
+// Copyright (c) 2013 Nathan Rajlich &lt;nathan@tootallnate.net&gt;
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// 'Software'), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+// ## asynckit 0.4.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/asynckit/v/0.4.0
+//
+// The MIT License (MIT)
+//
+// Copyright (c) 2016 Alex Indigo
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## axios 1.18.1
+//
+// License: MIT. Package: https://www.npmjs.com/package/axios/v/1.18.1
+//
+// # Copyright (c) 2014-present Matt Zabriskie & Collaborators
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## base64-js 1.5.1
+//
+// License: MIT. Package: https://www.npmjs.com/package/base64-js/v/1.5.1
+//
+// The MIT License (MIT)
+//
+// Copyright (c) 2014 Jameson Little
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//
+// ## buffer 6.0.3
+//
+// License: MIT. Package: https://www.npmjs.com/package/buffer/v/6.0.3
+//
+// The MIT License (MIT)
+//
+// Copyright (c) Feross Aboukhadijeh, and other contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//
+// ## call-bind-apply-helpers 1.0.2
+//
+// License: MIT. Package: https://www.npmjs.com/package/call-bind-apply-helpers/v/1.0.2
+//
+// MIT License
+//
+// Copyright (c) 2024 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## combined-stream 1.0.8
+//
+// License: MIT. Package: https://www.npmjs.com/package/combined-stream/v/1.0.8
+//
+// Copyright (c) 2011 Debuggable Limited <felix@debuggable.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//
+// ## debug 4.4.3
+//
+// License: MIT. Package: https://www.npmjs.com/package/debug/v/4.4.3
+//
+// (The MIT License)
+//
+// Copyright (c) 2014-2017 TJ Holowaychuk <tj@vision-media.ca>
+// Copyright (c) 2018-2021 Josh Junon
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+// and associated documentation files (the 'Software'), to deal in the Software without restriction,
+// including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial
+// portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+// LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+//
+// ## delayed-stream 1.0.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/delayed-stream/v/1.0.0
+//
+// Copyright (c) 2011 Debuggable Limited <felix@debuggable.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//
+// ## dunder-proto 1.0.1
+//
+// License: MIT. Package: https://www.npmjs.com/package/dunder-proto/v/1.0.1
+//
+// MIT License
+//
+// Copyright (c) 2024 ECMAScript Shims
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## es-define-property 1.0.1
+//
+// License: MIT. Package: https://www.npmjs.com/package/es-define-property/v/1.0.1
+//
+// MIT License
+//
+// Copyright (c) 2024 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## es-errors 1.3.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/es-errors/v/1.3.0
+//
+// MIT License
+//
+// Copyright (c) 2024 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## es-object-atoms 1.1.2
+//
+// License: MIT. Package: https://www.npmjs.com/package/es-object-atoms/v/1.1.2
+//
+// MIT License
+//
+// Copyright (c) 2024 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## es-set-tostringtag 2.1.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/es-set-tostringtag/v/2.1.0
+//
+// MIT License
+//
+// Copyright (c) 2022 ECMAScript Shims
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## follow-redirects 1.16.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/follow-redirects/v/1.16.0
+//
+// Copyright 2014–present Olivier Lalonde <olalonde@gmail.com>, James Talmage <james@talmage.io>, Ruben Verborgh
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+// IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## form-data 4.0.6
+//
+// License: MIT. Package: https://www.npmjs.com/package/form-data/v/4.0.6
+//
+// Copyright (c) 2012 Felix Geisendörfer (felix@debuggable.com) and contributors
+//
+//  Permission is hereby granted, free of charge, to any person obtaining a copy
+//  of this software and associated documentation files (the "Software"), to deal
+//  in the Software without restriction, including without limitation the rights
+//  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//  copies of the Software, and to permit persons to whom the Software is
+//  furnished to do so, subject to the following conditions:
+//
+//  The above copyright notice and this permission notice shall be included in
+//  all copies or substantial portions of the Software.
+//
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//  THE SOFTWARE.
+//
+//
+// ## function-bind 1.1.2
+//
+// License: MIT. Package: https://www.npmjs.com/package/function-bind/v/1.1.2
+//
+// Copyright (c) 2013 Raynos.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//
+//
+// ## get-intrinsic 1.3.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/get-intrinsic/v/1.3.0
+//
+// MIT License
+//
+// Copyright (c) 2020 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## get-proto 1.0.1
+//
+// License: MIT. Package: https://www.npmjs.com/package/get-proto/v/1.0.1
+//
+// MIT License
+//
+// Copyright (c) 2025 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## gopd 1.2.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/gopd/v/1.2.0
+//
+// MIT License
+//
+// Copyright (c) 2022 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## has-symbols 1.1.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/has-symbols/v/1.1.0
+//
+// MIT License
+//
+// Copyright (c) 2016 Jordan Harband
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## has-tostringtag 1.0.2
+//
+// License: MIT. Package: https://www.npmjs.com/package/has-tostringtag/v/1.0.2
+//
+// MIT License
+//
+// Copyright (c) 2021 Inspect JS
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## hasown 2.0.4
+//
+// License: MIT. Package: https://www.npmjs.com/package/hasown/v/2.0.4
+//
+// MIT License
+//
+// Copyright (c) Jordan Harband and contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## https-proxy-agent 5.0.1
+//
+// License: MIT. Package: https://www.npmjs.com/package/https-proxy-agent/v/5.0.1
+//
+// (The MIT License)
+//
+// Copyright (c) 2013 Nathan Rajlich &lt;nathan@tootallnate.net&gt;
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// 'Software'), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+// ## ieee754 1.2.1
+//
+// License: BSD-3-Clause. Package: https://www.npmjs.com/package/ieee754/v/1.2.1
+//
+// Copyright 2008 Fair Oaks Labs, Inc.
+//
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+//
+// ## inherits 2.0.4
+//
+// License: ISC. Package: https://www.npmjs.com/package/inherits/v/2.0.4
+//
+// The ISC License
+//
+// Copyright (c) Isaac Z. Schlueter
+//
+// Permission to use, copy, modify, and/or distribute this software for any
+// purpose with or without fee is hereby granted, provided that the above
+// copyright notice and this permission notice appear in all copies.
+//
+// THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+// REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+// FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+// INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+// LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+// OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+// PERFORMANCE OF THIS SOFTWARE.
+//
+//
+//
+// ## isomorphic-ws 5.0.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/isomorphic-ws/v/5.0.0
+//
+// The MIT License (MIT)
+//
+// Copyright (c) 2018 Zejin Zhuang <heineiuo@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// ## math-intrinsics 1.1.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/math-intrinsics/v/1.1.0
+//
+// MIT License
+//
+// Copyright (c) 2024 ECMAScript Shims
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## mime-db 1.52.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/mime-db/v/1.52.0
+//
+// (The MIT License)
+//
+// Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+// Copyright (c) 2015-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// 'Software'), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## mime-types 2.1.35
+//
+// License: MIT. Package: https://www.npmjs.com/package/mime-types/v/2.1.35
+//
+// (The MIT License)
+//
+// Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+// Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// 'Software'), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+// CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+// SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## ms 2.1.3
+//
+// License: MIT. Package: https://www.npmjs.com/package/ms/v/2.1.3
+//
+// The MIT License (MIT)
+//
+// Copyright (c) 2020 Vercel, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## msedge-tts 2.0.7
+//
+// License: MIT. Package: https://www.npmjs.com/package/msedge-tts/v/2.0.7
+//
+// MIT License
+//
+// Copyright (c) 2023 Migushthe2nd
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+//
+// ## proxy-from-env 2.1.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/proxy-from-env/v/2.1.0
+//
+// The MIT License
+//
+// Copyright (C) 2016-2018 Rob Wu <rob@robwu.nl>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## readable-stream 3.6.2
+//
+// License: MIT. Package: https://www.npmjs.com/package/readable-stream/v/3.6.2
+//
+// Node.js is licensed for use as follows:
+//
+// """
+// Copyright Node.js contributors. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+// """
+//
+// This license applies to parts of Node.js originating from the
+// https://github.com/joyent/node repository:
+//
+// """
+// Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+// """
+//
+//
+// ## safe-buffer 5.2.1
+//
+// License: MIT. Package: https://www.npmjs.com/package/safe-buffer/v/5.2.1
+//
+// The MIT License (MIT)
+//
+// Copyright (c) Feross Aboukhadijeh
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//
+// ## stream-browserify 3.0.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/stream-browserify/v/3.0.0
+//
+// MIT License
+//
+// Copyright (c) James Halliday
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+// the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## string_decoder 1.3.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/string_decoder/v/1.3.0
+//
+// Node.js is licensed for use as follows:
+//
+// """
+// Copyright Node.js contributors. All rights reserved.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+// """
+//
+// This license applies to parts of Node.js originating from the
+// https://github.com/joyent/node repository:
+//
+// """
+// Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+// """
+//
+//
+//
+// ## util-deprecate 1.0.2
+//
+// License: MIT. Package: https://www.npmjs.com/package/util-deprecate/v/1.0.2
+//
+// (The MIT License)
+//
+// Copyright (c) 2014 Nathan Rajlich <nathan@tootallnate.net>
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use,
+// copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following
+// conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## ws 8.21.0
+//
+// License: MIT. Package: https://www.npmjs.com/package/ws/v/8.21.0
+//
+// Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
+// Copyright (c) 2013 Arnout Kazemier and contributors
+// Copyright (c) 2016 Luigi Pinca and contributors
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+// the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+//
+// ## Host API types (not the proprietary application)
+//
+// The obsidian npm package contains MIT-licensed API type definitions. Obsidian
+// itself is a separate proprietary application provided by Dynalist Inc.; the
+// plugin additional permission does not license that application. The CodeMirror
+// APIs and Electron are provided by the host at runtime and are not bundled.
+//
+// ### obsidian 1.13.1 API type definitions
+//
+// Copyright 2022 Dynalist Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -8739,6 +10187,12 @@ var require_db = __commonJS({
 // node_modules/mime-db/index.js
 var require_mime_db = __commonJS({
   "node_modules/mime-db/index.js"(exports2, module2) {
+    /*!
+     * mime-db
+     * Copyright(c) 2014 Jonathan Ong
+     * Copyright(c) 2015-2022 Douglas Christopher Wilson
+     * MIT Licensed
+     */
     module2.exports = require_db();
   }
 });
@@ -8747,6 +10201,12 @@ var require_mime_db = __commonJS({
 var require_mime_types = __commonJS({
   "node_modules/mime-types/index.js"(exports2) {
     "use strict";
+    /*!
+     * mime-types
+     * Copyright(c) 2014 Jonathan Ong
+     * Copyright(c) 2015 Douglas Christopher Wilson
+     * MIT Licensed
+     */
     var db = require_mime_db(), extname = require("path").extname, EXTRACT_TYPE_REGEXP = /^\s*([^;\s]*)(?:;|\s|$)/, TEXT_TYPE_REGEXP = /^text\//i;
     exports2.charset = charset;
     exports2.charsets = { lookup: charset };
@@ -10892,6 +12352,7 @@ var require_follow_redirects = __commonJS({
 var require_axios = __commonJS({
   "node_modules/axios/dist/node/axios.cjs"(exports2, module2) {
     "use strict";
+    /*! Axios v1.18.1 Copyright (c) 2026 Matt Zabriskie and contributors */
     var FormData$1 = require_form_data(), crypto2 = require("crypto"), url = require("url"), HttpsProxyAgent = require_dist(), http = require("http"), https = require("https"), http2 = require("http2"), util = require("util"), path = require("path"), followRedirects = require_follow_redirects(), zlib = require("zlib"), stream = require("stream"), events = require("events");
     function bind(fn, thisArg) {
       return function() {
@@ -15228,7 +16689,7 @@ var require_sender = __commonJS({
 var require_event_target = __commonJS({
   "node_modules/ws/lib/event-target.js"(exports2, module2) {
     "use strict";
-    var { kForOnEventAttribute, kListener } = require_constants(), kCode = /* @__PURE__ */ Symbol("kCode"), kData = /* @__PURE__ */ Symbol("kData"), kError = /* @__PURE__ */ Symbol("kError"), kMessage = /* @__PURE__ */ Symbol("kMessage"), kReason = /* @__PURE__ */ Symbol("kReason"), kTarget = /* @__PURE__ */ Symbol("kTarget"), kType = /* @__PURE__ */ Symbol("kType"), kWasClean = /* @__PURE__ */ Symbol("kWasClean"), Event2 = class {
+    var { kForOnEventAttribute, kListener } = require_constants(), kCode = /* @__PURE__ */ Symbol("kCode"), kData = /* @__PURE__ */ Symbol("kData"), kError = /* @__PURE__ */ Symbol("kError"), kMessage = /* @__PURE__ */ Symbol("kMessage"), kReason = /* @__PURE__ */ Symbol("kReason"), kTarget = /* @__PURE__ */ Symbol("kTarget"), kType = /* @__PURE__ */ Symbol("kType"), kWasClean = /* @__PURE__ */ Symbol("kWasClean"), Event = class {
       /**
        * Create a new `Event`.
        *
@@ -15251,9 +16712,9 @@ var require_event_target = __commonJS({
         return this[kType];
       }
     };
-    Object.defineProperty(Event2.prototype, "target", { enumerable: !0 });
-    Object.defineProperty(Event2.prototype, "type", { enumerable: !0 });
-    var CloseEvent = class extends Event2 {
+    Object.defineProperty(Event.prototype, "target", { enumerable: !0 });
+    Object.defineProperty(Event.prototype, "type", { enumerable: !0 });
+    var CloseEvent = class extends Event {
       /**
        * Create a new `CloseEvent`.
        *
@@ -15292,7 +16753,7 @@ var require_event_target = __commonJS({
     Object.defineProperty(CloseEvent.prototype, "code", { enumerable: !0 });
     Object.defineProperty(CloseEvent.prototype, "reason", { enumerable: !0 });
     Object.defineProperty(CloseEvent.prototype, "wasClean", { enumerable: !0 });
-    var ErrorEvent = class extends Event2 {
+    var ErrorEvent = class extends Event {
       /**
        * Create a new `ErrorEvent`.
        *
@@ -15320,7 +16781,7 @@ var require_event_target = __commonJS({
     };
     Object.defineProperty(ErrorEvent.prototype, "error", { enumerable: !0 });
     Object.defineProperty(ErrorEvent.prototype, "message", { enumerable: !0 });
-    var MessageEvent = class extends Event2 {
+    var MessageEvent = class extends Event {
       /**
        * Create a new `MessageEvent`.
        *
@@ -15384,7 +16845,7 @@ var require_event_target = __commonJS({
           };
         else if (type === "open")
           wrapper = function() {
-            let event = new Event2("open");
+            let event = new Event("open");
             event[kTarget] = this, callListener(handler, this, event);
           };
         else
@@ -15409,7 +16870,7 @@ var require_event_target = __commonJS({
     module2.exports = {
       CloseEvent,
       ErrorEvent,
-      Event: Event2,
+      Event,
       EventTarget,
       MessageEvent
     };
@@ -16602,6 +18063,7 @@ var require_base64_js = __commonJS({
 // node_modules/ieee754/index.js
 var require_ieee754 = __commonJS({
   "node_modules/ieee754/index.js"(exports2) {
+    /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
     exports2.read = function(buffer, offset, isLE, mLen, nBytes) {
       var e, m, eLen = nBytes * 8 - mLen - 1, eMax = (1 << eLen) - 1, eBias = eMax >> 1, nBits = -7, i = isLE ? nBytes - 1 : 0, d = isLE ? -1 : 1, s = buffer[offset + i];
       for (i += d, e = s & (1 << -nBits) - 1, s >>= -nBits, nBits += eLen; nBits > 0; e = e * 256 + buffer[offset + i], i += d, nBits -= 8)
@@ -16632,6 +18094,12 @@ var require_ieee754 = __commonJS({
 var require_buffer = __commonJS({
   "node_modules/buffer/index.js"(exports2) {
     "use strict";
+    /*!
+     * The buffer module from node.js, for the browser.
+     *
+     * @author   Feross Aboukhadijeh <https://feross.org>
+     * @license  MIT
+     */
     var base64 = require_base64_js(), ieee754 = require_ieee754(), customInspectSymbol = typeof Symbol == "function" && typeof Symbol.for == "function" ? /* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom") : null;
     exports2.Buffer = Buffer2;
     exports2.SlowBuffer = SlowBuffer;
@@ -18029,7 +19497,7 @@ __export(main_exports, {
   default: () => SpeakingEditorPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian3 = require("obsidian"), import_view4 = require("@codemirror/view"), import_fs4 = require("fs"), import_os3 = require("os"), import_path5 = require("path");
+var import_obsidian2 = require("obsidian"), import_view3 = require("@codemirror/view"), import_fs3 = require("fs"), import_os2 = require("os"), import_path4 = require("path");
 
 // src/shell/sync-field.ts
 var import_state = require("@codemirror/state"), import_view = require("@codemirror/view"), setWords = import_state.StateEffect.define(), setPosition = import_state.StateEffect.define(), clearAll = import_state.StateEffect.define();
@@ -19315,28 +20783,62 @@ function createReturnChip(doc, opts) {
   };
 }
 
-// src/shell/acceptance.ts
-var import_obsidian = require("obsidian"), import_view3 = require("@codemirror/view"), import_fs3 = require("fs"), import_os2 = require("os"), import_path3 = require("path");
+// src/shell/settings.ts
+var CACHE_SIZE_CHOICES = [50, 200, 500, 1e3], DEFAULT_SETTINGS = {
+  providerId: "edge",
+  voiceByProvider: {},
+  speed: 1,
+  listeningMode: !0,
+  cacheSizeMb: 200,
+  seekHintsShown: 0,
+  firstPlayTipShown: !1
+};
+function mergeSettings(saved) {
+  let s = saved ?? {};
+  return {
+    providerId: typeof s.providerId == "string" ? s.providerId : DEFAULT_SETTINGS.providerId,
+    voiceByProvider: s.voiceByProvider && typeof s.voiceByProvider == "object" ? { ...s.voiceByProvider } : {},
+    speed: typeof s.speed == "number" ? s.speed : DEFAULT_SETTINGS.speed,
+    listeningMode: typeof s.listeningMode == "boolean" ? s.listeningMode : DEFAULT_SETTINGS.listeningMode,
+    cacheSizeMb: CACHE_SIZE_CHOICES.includes(s.cacheSizeMb) ? s.cacheSizeMb : DEFAULT_SETTINGS.cacheSizeMb,
+    // A non-negative integer, else 0. Clamps a stray/negative payload so the gate
+    // stays sane; old payloads without the field default to 0 (hint still teaches).
+    seekHintsShown: typeof s.seekHintsShown == "number" && Number.isFinite(s.seekHintsShown) && s.seekHintsShown >= 0 ? Math.floor(s.seekHintsShown) : DEFAULT_SETTINGS.seekHintsShown,
+    firstPlayTipShown: typeof s.firstPlayTipShown == "boolean" ? s.firstPlayTipShown : DEFAULT_SETTINGS.firstPlayTipShown
+  };
+}
+function voiceForProvider(settings, providerId, providerDefaultVoice) {
+  return settings.voiceByProvider[providerId] ?? providerDefaultVoice;
+}
+function rememberVoice(settings, providerId, voice) {
+  return {
+    ...settings,
+    voiceByProvider: { ...settings.voiceByProvider, [providerId]: voice }
+  };
+}
 
-// src/shell/error-copy.ts
-function providerPhrase(providerId, providerLabel2) {
-  switch (providerId) {
-    case "edge":
-      return "The free Edge voice";
-    case "elevenlabs":
-      return "The ElevenLabs voice";
-    case "openai":
-      return "The OpenAI voice";
-    case "say":
-      return "The offline macOS voice";
-    default:
-      return `The ${providerLabel2} voice`;
+// src/shell/key-store.ts
+var KeyStore = class {
+  constructor(storage) {
+    this.storage = storage;
   }
-}
-function mapProviderError(providerId, providerLabel2, platform, _error) {
-  let phrase = providerPhrase(providerId, providerLabel2);
-  return { sentence: providerId === "say" ? `${phrase} could not be started.` : `${phrase} could not be reached.`, action: platform === "darwin" && providerId !== "say" ? "offline-fallback" : "open-settings" };
-}
+  storage;
+  keyFor(providerId) {
+    return `speaking-editor:key:${providerId}`;
+  }
+  get(providerId) {
+    return this.storage.getItem(this.keyFor(providerId));
+  }
+  has(providerId) {
+    return this.get(providerId) !== null;
+  }
+  set(providerId, key) {
+    this.storage.setItem(this.keyFor(providerId), key);
+  }
+  clear(providerId) {
+    this.storage.removeItem(this.keyFor(providerId));
+  }
+};
 
 // src/engine/synthesis/say.ts
 var import_child_process = require("child_process"), import_fs2 = require("fs"), import_os = require("os"), import_path2 = require("path"), import_util = require("util");
@@ -19474,782 +20976,25 @@ function providerLabel(providerId) {
   return PROVIDER_CATALOG.find((p) => p.id === providerId)?.label ?? providerId;
 }
 
-// src/shell/acceptance.ts
-var CountingProvider = class {
-  constructor(inner) {
-    this.inner = inner;
-  }
-  inner;
-  synthCount = 0;
-  get id() {
-    return this.inner.id;
-  }
-  get label() {
-    return this.inner.label;
-  }
-  get requiresKey() {
-    return this.inner.requiresKey;
-  }
-  get timingQuality() {
-    return this.inner.timingQuality;
-  }
-  get maxCharsPerRequest() {
-    return this.inner.maxCharsPerRequest;
-  }
-  get defaultVoice() {
-    return this.inner.defaultVoice;
-  }
-  listVoices() {
-    return this.inner.listVoices();
-  }
-  synthesize(chunk, voice, signal) {
-    return this.synthCount++, this.inner.synthesize(chunk, voice, signal);
-  }
-}, REPORT = "skeleton-acceptance.md", NOTE = "Skeleton Note.md", FIXTURE = `---
-title: Skeleton fixture
----
-
-# Heading With Words To Read
-
-This first paragraph is plain prose with a good many ordinary words so the
-reader has a calm runway to walk across before anything interesting happens.
-
-The second paragraph has **bold emphasis**, some *italic drift*, an \`inline code\` span,
-and a [markdown link](https://example.com) to strip out cleanly.
-
-- A list item with a **bolded** word inside it and a few more plain words.
-- Another list item, kept deliberately short and simple.
-
-The closing paragraph gives the clock a long, calm runway of ordinary words to
-end on, with enough length that several word boundaries pass while it plays.
-`, sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function waitUntil(pred, timeoutMs, step = 50) {
-  let start = Date.now();
-  for (; Date.now() - start < timeoutMs; ) {
-    if (pred()) return !0;
-    await sleep(step);
-  }
-  return pred();
-}
-async function runAcceptance(app, plugin) {
-  let lines = ["# Skeleton acceptance report", ""], checks = [], settingsSnapshot = JSON.stringify(plugin.settings), positionsSnapshot = plugin.acceptancePositionsSnapshot();
-  plugin.acceptanceRunning = !0;
-  let banner = new import_obsidian.Notice("Speaking Editor verification is running (about a minute). Please do not click or play until this notice disappears.", 0), write = () => app.vault.adapter.write(REPORT, lines.join(`
-`) + `
-`), check = (name, pass, detail) => {
-    checks.push({ name, pass, detail }), lines.push(`- ${pass ? "PASS" : "FAIL"}: ${name}. ${detail}`), write();
-  }, skips = [], skip = (name, reason) => {
-    skips.push(name), lines.push(`- SKIP: ${name}. ${reason}`), write();
-  }, hiddenMidRun = () => document.visibilityState === "hidden", session = null;
-  try {
-    if (lines.push(
-      `Environment: platform=${process.platform}, electron=${process.versions?.electron ?? "none"}, chrome=${process.versions?.chrome ?? "none"}`,
-      ""
-    ), window.focus(), await sleep(300), document.visibilityState === "hidden") {
-      if (lines.push("(Window was hidden when fired; waited for visibility.)", ""), await app.vault.adapter.write(REPORT, `# Skeleton acceptance report
-
-ARMED: waiting for the window to become visible (10 minute limit)...
-`), !await new Promise((res) => {
-        let timeout = setTimeout(() => {
-          document.removeEventListener("visibilitychange", on), res(!1);
-        }, 6e5), on = () => {
-          document.visibilityState === "visible" && (clearTimeout(timeout), document.removeEventListener("visibilitychange", on), res(!0));
-        };
-        document.addEventListener("visibilitychange", on);
-      })) {
-        lines.splice(2, 0, "RESULT: BLOCKED", "", "The window never became visible within 10 minutes, so the", "rAF-driven checks could not run. Open the test vault and rerun."), await write();
-        return;
-      }
-      await sleep(500);
-    }
-    await app.vault.adapter.write(NOTE, FIXTURE);
-    let file = app.vault.getAbstractFileByPath(NOTE) ?? app.vault.getFiles().find((f) => f.path === NOTE), leaf = app.workspace.getLeaf(!0);
-    await leaf.openFile(file);
-    let mdView = leaf.view;
-    await mdView.setState(
-      { ...mdView.getState(), mode: "source", source: !1 },
-      { history: !1 }
-    );
-    let cm = mdView.editor.cm, field = () => cm.state.field(syncField), lastState = "idle";
-    session = new ReadingSession({
-      docText: cm.state.doc.toString(),
-      uri: NOTE,
-      view: cm,
-      onState: (s) => {
-        lastState = s;
-      }
-    }), session.playPause();
-    let started = await waitUntil(() => session.state === "playing" && field().word >= 0, 6e3);
-    check(
-      "play reaches playing and first word decoration appears within 6s",
-      started,
-      `state=${session.state}, word=${field().word}, engineState=${lastState}`
-    );
-    let cleanFails = [], sample2 = field().words.slice(0, 15);
-    for (let e of sample2) {
-      let painted = e.runs.map((r) => cm.state.doc.sliceString(r.from, r.to)).join("");
-      painted !== e.text && cleanFails.push(`word ${e.index} "${e.text}" painted "${painted}"`);
-    }
-    check(
-      "painted slices equal word text (no syntax painted), first 15 words",
-      cleanFails.length === 0,
-      cleanFails.length ? cleanFails.slice(0, 5).join("; ") : `${sample2.length} words, every painted slice === word text`
-    );
-    let advances = [];
-    if (await new Promise((done) => {
-      let settled = !1, finish = () => {
-        settled || (settled = !0, done());
-      }, escape = setTimeout(finish, 8e3), last = field().word, t0 = performance.now(), obs = () => {
-        let w = field().word;
-        if (w !== last && w >= 0 && (advances.push({ t: performance.now(), word: w }), last = w), advances.length >= 10 || performance.now() - t0 > 6e3 || session.state !== "playing") {
-          clearTimeout(escape), finish();
-          return;
-        }
-        requestAnimationFrame(obs);
-      };
-      requestAnimationFrame(obs);
-    }), hiddenMidRun()) {
-      lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the checks; rAF-driven measurements", "are invalid from check 3 on. Keep the window visible and rerun."), await write();
-      return;
-    }
-    let monotonic = !0, paintable = !0;
-    for (let i = 1; i < advances.length; i++) advances[i].word < advances[i - 1].word && (monotonic = !1);
-    for (let a of advances) {
-      let e = field().words[a.word];
-      (!e || e.dirty || e.runs.length === 0) && (paintable = !1);
-    }
-    check(
-      "word advances are frame-synced and painted over a 10-word sample",
-      advances.length >= 5 && monotonic && paintable,
-      `${advances.length} advances observed, monotonic=${monotonic}, allPaintable=${paintable} (dispatch is synchronous in the rAF tick)`
-    );
-    let targetWords = field().words.filter((e) => e.runs.length > 0), target = targetWords[Math.min(targetWords.length - 1, 20)], clickResolved = -1, listener = (ev) => {
-      let pos = cm.posAtCoords({ x: ev.clientX, y: ev.clientY });
-      if (pos == null) return;
-      let words = field().words, w = words.find((e) => e.runs.some((r) => pos >= r.from && pos < r.to)) ?? words.find((e) => e.runs.length > 0 && e.runs[0].from >= pos);
-      w && (clickResolved = w.index, session.seekToWord(w.index));
-    };
-    cm.contentDOM.addEventListener("mousedown", listener);
-    let mid = Math.floor((target.runs[0].from + target.runs[0].to) / 2);
-    cm.dispatch({ effects: import_view3.EditorView.scrollIntoView(mid) }), await sleep(120);
-    let coords = cm.coordsAtPos(mid);
-    coords && cm.contentDOM.dispatchEvent(
-      new MouseEvent("mousedown", {
-        clientX: (coords.left + coords.right) / 2 || coords.left + 1,
-        clientY: (coords.top + coords.bottom) / 2,
-        bubbles: !0
-      })
-    ), cm.contentDOM.removeEventListener("mousedown", listener);
-    let seeked = await waitUntil(
-      () => field().word === target.index || field().word === target.index + 1,
-      1500
-    );
-    check(
-      "synthetic click seeks playback to the clicked word within 1s",
-      seeked && clickResolved === target.index,
-      `clicked=${clickResolved} target=${target.index} ("${target.text}"), current=${field().word}, coords=${!!coords}`
-    ), await waitUntil(() => session.state === "playing", 2e3), session.playPause(), await waitUntil(() => session.state === "paused", 1500);
-    let pausedWord = field().word, pausedSentence = field().sentence;
-    await sleep(400);
-    let frozen = field().word === pausedWord, sentenceWords = field().words.filter((e) => e.sentence === pausedSentence && e.runs.length > 0).map((e) => e.index), firstWord = sentenceWords.length ? Math.min(...sentenceWords) : pausedWord;
-    session.playPause();
-    let resumedAtStart = await waitUntil(
-      () => session.state === "playing" && (field().word === firstWord || field().word === firstWord + 1),
-      3e3
-    );
-    check(
-      "pause freezes position; resume restarts from the sentence start",
-      frozen && resumedAtStart,
-      `frozen=${frozen} (word stayed ${pausedWord}); resumed at ${field().word}, sentence-start=${firstWord}`
-    ), await waitUntil(() => session.state === "playing", 2e3);
-    let probe = field().words.find((e) => e.runs.length > 0 && e.index > field().word + 3), probeBefore = probe ? probe.runs[0].from : -1, ins = "TYPED ";
-    cm.dispatch({ changes: { from: 0, insert: ins } });
-    let probeAfter = probe ? field().words[probe.index].runs[0]?.from ?? -1 : -1, stillPlaying = await waitUntil(() => session.state === "playing", 800) && session.state === "playing";
-    check(
-      "insertion upstream shifts decorations and playback continues",
-      probe != null && probeAfter === probeBefore + ins.length && stillPlaying,
-      `probe word ${probe?.index} ${probeBefore}->${probeAfter} (+${ins.length}), state=${session.state}`
-    ), session.stop();
-    let clearedNow = field().words.length === 0 && field().word === -1, wordAtStop = field().word;
-    await sleep(500);
-    let stayedFrozen = field().word === wordAtStop && field().words.length === 0;
-    check(
-      "stop clears all decorations and releases audio",
-      clearedNow && stayedFrozen && session.state === "idle",
-      `words=${field().words.length}, word=${field().word}, state=${session.state}, frozen after 500ms=${stayedFrozen}`
-    ), session.dispose(), session = null;
-    let clickWord = async (e) => {
-      let midPos = Math.floor((e.runs[0].from + e.runs[0].to) / 2);
-      cm.dispatch({ effects: import_view3.EditorView.scrollIntoView(midPos) }), await sleep(120);
-      let c = cm.coordsAtPos(midPos);
-      return c ? (cm.contentDOM.dispatchEvent(
-        new MouseEvent("mousedown", {
-          clientX: (c.left + c.right) / 2 || c.left + 1,
-          clientY: (c.top + c.bottom) / 2,
-          bubbles: !0
-        })
-      ), !0) : !1;
-    };
-    session = new ReadingSession({
-      docText: cm.state.doc.toString(),
-      uri: NOTE,
-      view: cm,
-      speed: 1,
-      onState: (s) => {
-        lastState = s;
-      }
-    }), session.playPause();
-    let playing8 = await waitUntil(() => session.state === "playing", 6e3), sameSession = session;
-    session.setSpeed(2);
-    let rateApplied = await waitUntil(() => session.audioPlaybackRates.some((r) => r === 2), 500);
-    check(
-      "speed change during playback reaches the live audio within 500ms (same session)",
-      playing8 && rateApplied && session === sameSession,
-      `playing=${playing8}, rates=[${session.audioPlaybackRates.join(", ")}], sameSession=${session === sameSession}`
-    ), session.dispose(), session = null, plugin.acceptanceStartSession(cm, NOTE);
-    let started9 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
-      6e3
-    );
-    plugin.acceptanceSession()?.playPause(), await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 1500);
-    let frozenWord = field().word, clickable = field().words.filter((e) => e.runs.length > 0), target9 = clickable[Math.min(clickable.length - 1, 20)];
-    plugin.settings.listeningMode = !1;
-    let off1 = await clickWord(target9);
-    await sleep(350);
-    let offWord = field().word, stayedOff = offWord === frozenWord;
-    plugin.settings.listeningMode = !0;
-    let on1 = await clickWord(target9), movedOn = await waitUntil(
-      () => field().word === target9.index || field().word === target9.index + 1,
-      1500
-    );
-    check(
-      "listening mode gates click-to-seek (off: no move, on: seeks to the clicked word)",
-      started9 && off1 && on1 && stayedOff && movedOn,
-      `frozen=${frozenWord}, off stayed at ${offWord}, on reached ${field().word}, target=${target9.index} ("${target9.text}")`
-    ), plugin.acceptanceDisposeSession();
-    let voiceB = "en-US-GuyNeural";
-    plugin.acceptanceStartSession(cm, NOTE);
-    let playing10 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 2,
-      15e3
-    ), capturedWord = field().word, capturedSentence = field().sentence;
-    await plugin.applyVoice(plugin.settings.providerId, voiceB);
-    let primedPaused = await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 8e3), sentenceWords10 = field().words.filter((e) => e.sentence === capturedSentence && e.runs.length > 0).map((e) => e.index), firstWord10 = sentenceWords10.length ? Math.min(...sentenceWords10) : capturedWord;
-    plugin.acceptanceSession()?.playPause();
-    let resumed = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= firstWord10 && field().word <= capturedWord + 2,
-      15e3
-    );
-    check(
-      "voice change primes paused at the captured word; play resumes there with the new voice",
-      playing10 && primedPaused && resumed,
-      `captured=${capturedWord} (sentence ${capturedSentence}, start ${firstWord10}), primedPaused=${primedPaused}, resumedAt=${field().word}, newVoice=${voiceB}`
-    ), await plugin.applyVoice(plugin.settings.providerId, "en-US-AriaNeural"), plugin.acceptanceDisposeSession();
-    let pillEl = () => document.querySelector(".se-pill"), pillCount = () => document.querySelectorAll(".se-pill").length, clickPill = (sel) => {
-      let el = document.querySelector(sel);
-      return el ? (el.dispatchEvent(new MouseEvent("click", { bubbles: !0 })), !0) : !1;
-    }, menuEl = () => document.querySelector(".menu"), menuItems = (root) => Array.from(root.querySelectorAll(".menu-item")), itemTitle = (item) => item.querySelector(".menu-item-title")?.textContent ?? item.textContent ?? "", clickMenuItem = (item) => item.dispatchEvent(new MouseEvent("click", { bubbles: !0 })), closeMenus = async () => {
-      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: !0 })), await waitUntil(() => menuEl() === null, 1e3);
-    };
-    plugin.settings.speed = 1, plugin.acceptanceStartSession(cm, NOTE);
-    let started11 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && !!pillEl(),
-      6e3
-    ), anchor11 = cm.scrollDOM.offsetParent ?? cm.dom, pill11 = pillEl(), play11 = document.querySelector(".se-pill-play");
-    check(
-      "starting a session mounts exactly one pill in the editor; play reflects playing",
-      started11 && pillCount() === 1 && !!pill11 && anchor11.contains(pill11) && play11?.dataset.icon === "pause",
-      `started=${started11}, pills=${pillCount()}, anchored=${pill11 ? anchor11.contains(pill11) : !1}, playGlyph=${play11?.dataset.icon}`
-    );
-    let clickedPause = clickPill(".se-pill-play"), paused12 = await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 2e3), pauseGlyph = document.querySelector(".se-pill-play")?.dataset.icon, clickedResume = clickPill(".se-pill-play"), resumed12 = await waitUntil(() => plugin.acceptanceSession()?.state === "playing", 3e3), resumeGlyph = document.querySelector(".se-pill-play")?.dataset.icon;
-    check(
-      "clicking the pill play control pauses then resumes, glyph tracking state",
-      clickedPause && paused12 && pauseGlyph === "play" && clickedResume && resumed12 && resumeGlyph === "pause",
-      `paused=${paused12} (glyph ${pauseGlyph}), resumed=${resumed12} (glyph ${resumeGlyph})`
-    ), skip(
-      "clicking the speed control opens the preset menu without cycling in place (spec 0005)",
-      "menus need real user input; models unit-tested, manual pass covers the click"
-    ), cm.dispatch({ changes: { from: 0, insert: "Z " } });
-    let faded14 = await waitUntil(() => {
-      let el = pillEl();
-      return !!el && parseFloat(getComputedStyle(el).opacity || "1") < 1;
-    }, 200), restored14 = await waitUntil(() => {
-      let el = pillEl();
-      return !!el && parseFloat(getComputedStyle(el).opacity || "0") >= 0.99;
-    }, 2500);
-    check(
-      "a user edit fades the pill then it restores to full opacity without a hover",
-      faded14 && restored14,
-      `faded=${faded14}, restored=${restored14}, opacity=${pillEl() ? getComputedStyle(pillEl()).opacity : "n/a"}`
-    );
-    let clickedStop = clickPill(".se-pill-stop"), removed15 = await waitUntil(() => pillCount() === 0, 2e3);
-    plugin.acceptanceStartSession(cm, NOTE);
-    let remounted15 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && pillCount() === 1,
-      6e3
-    );
-    check(
-      "the pill stop control removes the pill entirely; a fresh play mounts a new one",
-      clickedStop && removed15 && remounted15 && pillCount() === 1,
-      `stopped=${clickedStop}, removedToZero=${removed15}, freshPills=${pillCount()}`
-    ), plugin.acceptanceDisposeSession(), skip(
-      "clicking the speed control opens a menu and a preset pick applies (setting + live audio + label), then closes",
-      "menus need real user input; applySpeed itself is covered by check 8"
-    ), skip(
-      "clicking the voice control opens the provider+voice menu; a voice pick lands paused-primed and updates the label",
-      "menus need real user input; the reconfigure contract is covered by check 10"
-    );
-    let harnessCacheDir = (0, import_fs3.mkdtempSync)((0, import_path3.join)((0, import_os2.tmpdir)(), "se-acceptance-cache-")), sharedCache = new DiskCache(harnessCacheDir, 200 * 1024 * 1024), edge = new EdgeProvider(), counting1 = new CountingProvider(edge);
-    session = new ReadingSession({
-      docText: cm.state.doc.toString(),
-      uri: NOTE,
-      view: cm,
-      provider: counting1,
-      cache: sharedCache,
-      onState: (s) => {
-        lastState = s;
-      }
-    }), session.playPause();
-    let played18a = await waitUntil(() => session.state === "playing" && field().word >= 0, 12e3), cached18 = await waitUntil(() => counting1.synthCount >= 1, 15e3);
-    await sleep(1200);
-    let firstRunCalls = counting1.synthCount;
-    session.dispose(), session = null;
-    let counting2 = new CountingProvider(edge);
-    session = new ReadingSession({
-      docText: cm.state.doc.toString(),
-      uri: NOTE,
-      view: cm,
-      provider: counting2,
-      cache: sharedCache,
-      onState: (s) => {
-        lastState = s;
-      }
-    }), session.playPause();
-    let played18b = await waitUntil(() => session.state === "playing" && field().word >= 0, 12e3), secondRunFree = counting2.synthCount === 0;
-    check(
-      "second play of the same note+voice serves its first chunk from disk cache (zero synth calls)",
-      played18a && cached18 && played18b && secondRunFree,
-      `run1 synthCalls=${firstRunCalls} (cached), run2 synthCalls=${counting2.synthCount} (0 expected), cacheDir=${harnessCacheDir}`
-    ), session.dispose(), session = null, plugin.acceptanceDisposeSession(), plugin.acceptanceClearPosition(NOTE), plugin.acceptanceStartSession(cm, NOTE);
-    let started19 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
-      8e3
-    ), advanced19 = await waitUntil(() => field().sentence >= 1 && field().word >= 1, 12e3), stoppedWord = field().word, stoppedSentence = field().sentence;
-    plugin.acceptanceStopSession(), await waitUntil(() => plugin.acceptanceSession()?.state === "idle", 2e3), plugin.acceptanceStartSession(cm, NOTE);
-    let resumedPlaying19 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
-      8e3
-    ), resumeSentenceWords = field().words.filter((e) => e.sentence === stoppedSentence && e.runs.length > 0).map((e) => e.index), sentenceStartWord = resumeSentenceWords.length ? Math.min(...resumeSentenceWords) : stoppedWord, resumedAtSentence = await waitUntil(
-      () => field().sentence === stoppedSentence && (field().word === sentenceStartWord || field().word === sentenceStartWord + 1),
-      4e3
-    ), resumedWord = field().word, resumedSentence = field().sentence;
-    plugin.acceptanceReadFromTop(cm, NOTE);
-    let fromTop19 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && (field().word === 0 || field().word === 1),
-      8e3
-    );
-    check(
-      "stop mid-note resumes at the stopped sentence; read-from-top restarts at word 0",
-      started19 && advanced19 && resumedPlaying19 && resumedAtSentence && fromTop19,
-      `stopped at word ${stoppedWord} (sentence ${stoppedSentence}); resumed at word ${resumedWord} (sentence ${resumedSentence}, start ${sentenceStartWord}); from-top word=${field().word}`
-    ), plugin.acceptanceDisposeSession();
-    let readingRoot = () => {
-      let root = mdView.previewMode?.containerEl;
-      return root ? root.querySelector(".markdown-preview-sizer") ?? root.querySelector(".markdown-preview-view") ?? root : null;
-    }, wordHi = () => CSS.highlights.get("se-word-r"), sentHi = () => CSS.highlights.get("se-sentence-r");
-    await mdView.setState(
-      { ...mdView.getState(), mode: "preview", source: !1 },
-      { history: !1 }
-    );
-    let rendered20 = await waitUntil(
-      () => (readingRoot()?.textContent ?? "").includes("closing paragraph"),
-      6e3
-    );
-    plugin.acceptanceStartSession(cm, NOTE);
-    let painted20 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && plugin.acceptanceSession()?.highlightSurface === "range" && (wordHi()?.size ?? 0) > 0,
-      6e3
-    );
-    check(
-      "reading mode: play reaches playing, alignment succeeds, and CSS.highlights paints the current word within 6s",
-      rendered20 && painted20,
-      `rendered=${rendered20}, state=${plugin.acceptanceSession()?.state}, surface=${plugin.acceptanceSession()?.highlightSurface}, wordRanges=${wordHi()?.size ?? 0}, sentenceRanges=${sentHi()?.size ?? 0}`
-    ), plugin.settings.listeningMode = !0;
-    let session21 = plugin.acceptanceSession(), target21 = -1, rect21 = null, frozen21 = -1, dispatched21 = !1;
-    if (session21) {
-      session21.playPause(), await waitUntil(() => session21.state === "paused", 1500), frozen21 = session21.currentWord;
-      for (let w = frozen21 + 3; w < frozen21 + 60; w++) {
-        let r = session21.acceptanceWordRect(w);
-        if (r && r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight) {
-          target21 = w, rect21 = r;
-          break;
-        }
-      }
-      let container21 = plugin.acceptanceReadingContainer();
-      rect21 && container21 && (container21.dispatchEvent(
-        new MouseEvent("mousedown", {
-          clientX: (rect21.left + rect21.right) / 2,
-          clientY: (rect21.top + rect21.bottom) / 2,
-          bubbles: !0
-        })
-      ), dispatched21 = !0);
-    }
-    let seeked21 = await waitUntil(
-      () => !!session21 && (session21.currentWord === target21 || session21.currentWord === target21 + 1),
-      1500
-    );
-    check(
-      "reading mode: a listening-mode click on a rendered word seeks playback there within 1s",
-      dispatched21 && target21 >= 0 && seeked21,
-      `frozen=${frozen21}, target=${target21}, dispatched=${dispatched21}, current=${session21?.currentWord}`
-    ), plugin.acceptanceDisposeSession();
-    let injectRoot = readingRoot(), injected22 = !1;
-    if (injectRoot) {
-      let junk = injectRoot.ownerDocument.createElement("span");
-      junk.textContent = "Zq9 ".repeat(120), injectRoot.insertBefore(junk, injectRoot.firstChild), injected22 = !0;
-    }
-    plugin.acceptanceStartSession(cm, NOTE);
-    let playing22 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && (plugin.acceptanceSession()?.currentWord ?? -1) >= 0,
-      8e3
-    ), surfaceNone22 = plugin.acceptanceSession()?.highlightSurface === "none", noRanges22 = !CSS.highlights.has("se-word-r") && !CSS.highlights.has("se-sentence-r");
-    check(
-      "reading mode all-or-nothing: an unalignable note still plays but registers no highlight ranges (surface none)",
-      injected22 && playing22 && surfaceNone22 && noRanges22,
-      `injected=${injected22}, state=${plugin.acceptanceSession()?.state}, word=${plugin.acceptanceSession()?.currentWord}, surface=${plugin.acceptanceSession()?.highlightSurface}, wordReg=${CSS.highlights.has("se-word-r")}, sentReg=${CSS.highlights.has("se-sentence-r")}`
-    ), plugin.acceptanceDisposeSession();
-    try {
-      injectRoot && injected22 && injectRoot.firstChild && injectRoot.removeChild(injectRoot.firstChild);
-    } catch {
-    }
-    await mdView.setState(
-      { ...mdView.getState(), mode: "source", source: !1 },
-      { history: !1 }
-    ), await sleep(200), plugin.acceptanceClearPosition(NOTE), plugin.acceptanceStartSession(cm, NOTE);
-    let preparingState23 = plugin.acceptanceSession()?.state === "preparing", pillPreparing23 = !!document.querySelector(".se-pill-preparing") || !!document.querySelector(".se-pill-play-preparing"), cleared23 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && !document.querySelector(".se-pill-preparing") && !document.querySelector(".se-pill-play-preparing"),
-      1e4
-    );
-    check(
-      "play reports preparing with a breathing pill; both clear when playing arrives",
-      preparingState23 && pillPreparing23 && cleared23,
-      `preparing=${preparingState23}, pillPreparing=${pillPreparing23}, clearedOnPlaying=${cleared23}, state=${plugin.acceptanceSession()?.state}`
-    ), plugin.acceptanceDisposeSession();
-    let failingProvider = {
-      id: "edge",
-      label: "Edge TTS",
-      requiresKey: !1,
-      timingQuality: "exact",
-      maxCharsPerRequest: 6e3,
-      defaultVoice: "en-US-AriaNeural",
-      listVoices: () => Promise.resolve([]),
-      synthesize: () => Promise.reject(new Error("ECONNRESET fake"))
-    }, expected24 = mapProviderError(
-      plugin.settings.providerId,
-      providerLabel(plugin.settings.providerId),
-      process.platform,
-      "ECONNRESET fake"
-    ).sentence, errorNotice = null;
-    session = new ReadingSession({
-      docText: cm.state.doc.toString(),
-      uri: NOTE,
-      view: cm,
-      provider: failingProvider,
-      onState: (s, msg) => {
-        s === "error" && (errorNotice = plugin.acceptanceShowSessionError(msg));
-      }
-    }), session.playPause();
-    let noticeShown24 = await waitUntil(
-      () => Array.from(document.querySelectorAll(".notice")).some(
-        (n) => (n.textContent ?? "").includes(expected24)
-      ),
-      1e4
-    ), noticeEls24 = Array.from(document.querySelectorAll(".notice")), noticeText24 = noticeEls24.map((n) => n.textContent ?? "").join(" | "), hasSentence24 = noticeText24.includes(expected24), hasAction24 = noticeEls24.some((n) => !!n.querySelector("button")), noRawError24 = !noticeText24.includes("ECONNRESET");
-    check(
-      "a provider failure shows a human notice with an action, never the raw exception",
-      noticeShown24 && hasSentence24 && hasAction24 && noRawError24,
-      `expected="${expected24}", shown=${noticeShown24}, sentence=${hasSentence24}, action=${hasAction24}, noRaw=${noRawError24}`
-    ), errorNotice?.hide(), session.dispose(), session = null, plugin.acceptanceClearPosition(NOTE), plugin.settings.listeningMode = !0, plugin.acceptanceStartSession(cm, NOTE);
-    let started25 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
-      1e4
-    );
-    plugin.acceptanceSession()?.playPause(), await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 2e3);
-    let clickable25 = field().words.filter((e) => e.runs.length > 0), target25a = clickable25[Math.min(clickable25.length - 1, 20)], target25b = clickable25[Math.min(clickable25.length - 1, 10)];
-    document.querySelectorAll(".se-hint").forEach((e) => e.remove()), plugin.settings.seekHintsShown = 0;
-    let clicked25a = await clickWord(target25a), hintShown25 = await waitUntil(() => !!document.querySelector(".se-hint"), 1500);
-    document.querySelectorAll(".se-hint").forEach((e) => e.remove()), plugin.settings.seekHintsShown = 3;
-    let clicked25b = await clickWord(target25b), hintSuppressed25 = !await waitUntil(() => !!document.querySelector(".se-hint"), 900);
-    check(
-      "the first-jump hint shows at counter 0 and is suppressed at counter 3",
-      started25 && clicked25a && hintShown25 && clicked25b && hintSuppressed25,
-      `shownAt0=${hintShown25}, suppressedAt3=${hintSuppressed25}, counterAfterFirst=${plugin.settings.seekHintsShown}`
-    ), plugin.acceptanceDisposeSession(), document.querySelectorAll(".se-hint").forEach((e) => e.remove());
-    let getFileByName = (name) => app.vault.getAbstractFileByPath(name) ?? app.vault.getFiles().find((f) => f.path === name), remainingEl = () => document.querySelector(".se-pill-remaining"), editedEl = () => document.querySelector(".se-pill-edited"), pillCount26 = () => document.querySelectorAll(".se-pill").length;
-    plugin.acceptanceClearPosition(NOTE), plugin.settings.speed = 1, plugin.acceptanceStartSession(cm, NOTE);
-    let started26 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
-      1e4
-    ), labelShown26 = await waitUntil(() => {
-      let el = remainingEl();
-      return !!el && (el.textContent ?? "").length > 0 && !el.classList.contains("se-pill-remaining-hidden");
-    }, 12e3), est26a = plugin.acceptanceSession()?.remainingEstimate() ?? null, label26a = remainingEl()?.textContent ?? "";
-    await sleep(3e3);
-    let est26b = plugin.acceptanceSession()?.remainingEstimate() ?? null, label26b = remainingEl()?.textContent ?? "", shrank26 = !!est26a && !!est26b && est26b.wordsLeft < est26a.wordsLeft;
-    check(
-      "the pill shows a remaining-time label during playback and the estimate shrinks as it reads",
-      started26 && labelShown26 && shrank26 && label26a.length > 0 && label26b.length > 0,
-      `shown=${labelShown26}, label1="${label26a}" wordsLeft=${est26a?.wordsLeft}, label2="${label26b}" wordsLeft=${est26b?.wordsLeft}, shrank=${shrank26}`
-    ), plugin.acceptanceDisposeSession();
-    let ENDING_NOTE = "Skeleton Ending.md";
-    await app.vault.adapter.write(ENDING_NOTE, `Hi there friend. Bye now everyone.
-`);
-    let endLeaf = app.workspace.getLeaf(!0);
-    await endLeaf.openFile(getFileByName(ENDING_NOTE));
-    let endView = endLeaf.view;
-    await endView.setState(
-      { ...endView.getState(), mode: "source", source: !1 },
-      { history: !1 }
-    );
-    let endCm = endView.editor.cm, endField = () => endCm.state.field(syncField);
-    plugin.acceptanceClearPosition(ENDING_NOTE), plugin.acceptanceStartSession(endCm, ENDING_NOTE);
-    let endedReached27 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "ended",
-      25e3
-    );
-    await sleep(300);
-    let present300_27 = endField().word >= 0, clearedBy1200_27 = await waitUntil(() => endField().word === -1, 1100), pillGone27 = await waitUntil(() => pillCount26() === 0, 1500);
-    check(
-      "natural end lingers the highlight ~600ms then clears, and the pill fades out of the DOM",
-      endedReached27 && present300_27 && clearedBy1200_27 && pillGone27,
-      `ended=${endedReached27}, present@300ms=${present300_27}, cleared<=1200ms=${clearedBy1200_27}, pillRemoved=${pillGone27}`
-    ), plugin.acceptanceDisposeSession(), app.workspace.setActiveLeaf(leaf, { focus: !0 }), await sleep(150), await mdView.setState(
-      { ...mdView.getState(), mode: "source", source: !1 },
-      { history: !1 }
-    ), await sleep(150), plugin.acceptanceClearPosition(NOTE), plugin.acceptanceStartSession(cm, NOTE);
-    let started28 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && field().word >= 0,
-      1e4
-    ), editable28 = field().words.filter(
-      (e) => e.runs.length > 0 && e.runs[0].to - e.runs[0].from >= 3
-    ), picks28 = [editable28[5], editable28[10], editable28[15]].filter(Boolean), mids28 = picks28.map((e) => Math.floor((e.runs[0].from + e.runs[0].to) / 2)).sort((a, b) => b - a);
-    for (let at of mids28) cm.dispatch({ changes: { from: at, insert: "x" } });
-    let badgeOn28 = await waitUntil(() => {
-      let el = editedEl();
-      return !!el && !el.classList.contains("se-pill-edited-hidden");
-    }, 1500), dirtyCount28 = field().words.reduce((n, e) => n + (e.dirty ? 1 : 0), 0);
-    plugin.acceptanceDisposeSession(), plugin.acceptanceStartSession(cm, NOTE), await waitUntil(() => plugin.acceptanceSession()?.state === "playing", 8e3);
-    let el28b = editedEl(), badgeOffFresh28 = !!el28b && el28b.classList.contains("se-pill-edited-hidden");
-    check(
-      "three mid-word edits flip the edited badge on; a fresh session starts without it",
-      started28 && picks28.length === 3 && badgeOn28 && badgeOffFresh28,
-      `picks=${picks28.length}, dirtyWords=${dirtyCount28}, badgeOn=${badgeOn28}, freshHidden=${badgeOffFresh28}`
-    ), plugin.acceptanceDisposeSession();
-    let WARM_NOTE = "Skeleton Warmup.md", WARM_TEXT = `Warm start paragraph with plenty of ordinary words so the first chunk of audio is worth synthesizing into the cache for an instant later play. A second sentence keeps it safe.
-`, WARM_NOTE2 = "Skeleton Warmup Two.md", WARM_TEXT2 = `Another warmup note whose opening chunk uses entirely different vocabulary so its cache key never collides with the earlier warm note referenced above. Second sentence follows along.
-`;
-    await app.vault.adapter.write(WARM_NOTE, WARM_TEXT), await app.vault.adapter.write(WARM_NOTE2, WARM_TEXT2), plugin.settings.providerId = "edge", plugin.acceptanceSetPlayedOnce(!0);
-    let warmVoice = plugin.acceptanceWarmVoice(), cacheLoc = plugin.acceptanceCacheLocation(), keyFor = (text, uri) => {
-      let chunks = buildChunks(parseDocument(text, uri, 1));
-      return DiskCache.makeKey(chunks[0].text, "edge", warmVoice);
-    }, filesFor = (key) => [(0, import_path3.join)(cacheLoc, `${key}.bin`), (0, import_path3.join)(cacheLoc, `${key}.json`)], removeKey = (key) => {
-      for (let f of filesFor(key))
-        try {
-          (0, import_fs3.rmSync)(f, { force: !0 });
-        } catch {
-        }
-    }, key1 = keyFor(WARM_TEXT, WARM_NOTE), key2 = keyFor(WARM_TEXT2, WARM_NOTE2);
-    plugin.acceptanceDisposeSession(), removeKey(key1), removeKey(key2);
-    let warmLeaf = app.workspace.getLeaf(!0);
-    await warmLeaf.openFile(getFileByName(WARM_NOTE));
-    let warmView = warmLeaf.view;
-    await warmView.setState(
-      { ...warmView.getState(), mode: "source", source: !1 },
-      { history: !1 }
-    );
-    let warmCm = warmView.editor.cm;
-    plugin.acceptanceWarmUp(warmCm, WARM_NOTE);
-    let [bin1, json1] = filesFor(key1), warmed29 = await waitUntil(() => (0, import_fs3.existsSync)(bin1) && (0, import_fs3.existsSync)(json1), 1e4), noSession29 = plugin.acceptanceSession() === null, noPill29 = pillCount26() === 0;
-    plugin.acceptanceStartSession(warmCm, WARM_NOTE);
-    let active29 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing",
-      12e3
-    );
-    plugin.acceptanceSession()?.playPause(), await waitUntil(() => plugin.acceptanceSession()?.state === "paused", 3e3), removeKey(key2);
-    let warmLeaf2 = app.workspace.getLeaf(!0);
-    await warmLeaf2.openFile(getFileByName(WARM_NOTE2));
-    let warmView2 = warmLeaf2.view;
-    await warmView2.setState(
-      { ...warmView2.getState(), mode: "source", source: !1 },
-      { history: !1 }
-    );
-    let warmCm2 = warmView2.editor.cm;
-    plugin.acceptanceWarmUp(warmCm2, WARM_NOTE2);
-    let [bin2, json2] = filesFor(key2), notWarmedActive29 = !await waitUntil(() => (0, import_fs3.existsSync)(bin2) && (0, import_fs3.existsSync)(json2), 3e3);
-    check(
-      "warm start writes chunk-0 cache on an idle switch, but not while a session is active",
-      warmed29 && noSession29 && noPill29 && active29 && notWarmedActive29,
-      `warmedIdle=${warmed29}, noSession=${noSession29}, noPill=${noPill29}, sessionActive=${active29}, blockedWhileActive=${notWarmedActive29}, key1=${key1}`
-    ), plugin.acceptanceDisposeSession(), removeKey(key1), removeKey(key2), plugin.settings.firstPlayTipShown = !1;
-    let tipText = "click any word to jump", noticeWithTip = () => Array.from(document.querySelectorAll(".notice")).some((n) => (n.textContent ?? "").includes(tipText));
-    plugin.acceptanceStartSession(cm, NOTE);
-    let tipShown30 = await waitUntil(noticeWithTip, 3e3), flagFlipped30 = !!plugin.settings.firstPlayTipShown;
-    plugin.acceptanceDisposeSession(), await waitUntil(() => !noticeWithTip(), 8e3), plugin.acceptanceStartSession(cm, NOTE), await sleep(600);
-    let tipAgain30 = noticeWithTip();
-    plugin.acceptanceDisposeSession(), check(
-      "first play ever shows the one-time tip notice and flips the flag; second play stays quiet",
-      tipShown30 && flagFlipped30 && !tipAgain30,
-      `tipShown=${tipShown30}, flagFlipped=${flagFlipped30}, tipOnSecondPlay=${tipAgain30}`
-    ), plugin.acceptanceDisposeSession();
-    let BIG_NOTE = "Skeleton Large.md", bigSentences = [];
-    for (let i = 1; i <= 800; i++)
-      bigSentences.push(`This is ordinary sentence number ${i} with plenty of plain words to read.`);
-    let bigParagraphs = [];
-    for (let p = 0; p < bigSentences.length; p += 5)
-      bigParagraphs.push(bigSentences.slice(p, p + 5).join(" "));
-    let BIG_TEXT = bigParagraphs.join(`
-
-`) + `
-`;
-    await app.vault.adapter.write(BIG_NOTE, BIG_TEXT);
-    let bigLeaf = app.workspace.getLeaf(!0);
-    await bigLeaf.openFile(getFileByName(BIG_NOTE));
-    let bigView = bigLeaf.view;
-    await bigView.setState(
-      { ...bigView.getState(), mode: "source", source: !1 },
-      { history: !1 }
-    ), await sleep(200);
-    let bigCm = bigView.editor.cm, bigField = () => bigCm.state.field(syncField), returnChipVisible = () => !!document.querySelector(".se-return.se-return-visible");
-    plugin.acceptanceClearPosition(BIG_NOTE), plugin.acceptanceStartSession(bigCm, BIG_NOTE);
-    let started31 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && bigField().word >= 2,
-      12e3
-    ), brokeFollowing31 = await waitUntil(() => (bigCm.scrollDOM.dispatchEvent(new Event("scroll")), plugin.acceptanceSession()?.following === !1), 6e3, 100), chipVisible31 = returnChipVisible();
-    await sleep(500);
-    let scrollAtBreak31 = bigCm.scrollDOM.scrollTop, sentAtBreak31 = bigField().sentence, advanced31 = await waitUntil(
-      () => bigField().sentence !== sentAtBreak31 && bigField().sentence >= 0,
-      1e4
-    ), scrollFrozen31 = bigCm.scrollDOM.scrollTop === scrollAtBreak31;
-    check(
-      "spec 0012: a user scroll breaks following (chip shows) and stops auto-scroll on the next sentence change",
-      started31 && brokeFollowing31 && chipVisible31 && advanced31 && scrollFrozen31,
-      `started=${started31}, broke=${brokeFollowing31}, chipVisible=${chipVisible31}, sentenceAdvanced=${advanced31}, scrollFrozen=${scrollFrozen31} (scrollTop stayed ${scrollAtBreak31})`
-    );
-    let scrollBeforeReturn32 = bigCm.scrollDOM.scrollTop;
-    document.querySelector(".se-return")?.dispatchEvent(new MouseEvent("click", { bubbles: !0 }));
-    let chipHidden32 = await waitUntil(() => !returnChipVisible(), 2e3), followingResumed32 = plugin.acceptanceSession()?.following === !0, recentred32 = await waitUntil(() => bigCm.scrollDOM.scrollTop !== scrollBeforeReturn32, 4e3);
-    await sleep(600);
-    let scrollAfterRecentre32 = bigCm.scrollDOM.scrollTop, autoScrollsAgain32 = await waitUntil(
-      () => bigCm.scrollDOM.scrollTop !== scrollAfterRecentre32,
-      25e3
-    );
-    check(
-      "spec 0012: the return chip re-centres, hides, and following resumes (auto-scroll returns)",
-      chipHidden32 && followingResumed32 && recentred32 && autoScrollsAgain32,
-      `chipHidden=${chipHidden32}, followingResumed=${followingResumed32}, recentred=${recentred32}, autoScrollsAgain=${autoScrollsAgain32}`
-    ), plugin.acceptanceDisposeSession(), plugin.acceptanceClearPosition(BIG_NOTE), plugin.acceptanceStartSession(bigCm, BIG_NOTE);
-    let sawWordZero33 = !1, reachedPlaying33 = await waitUntil(() => (bigField().word === 0 && (sawWordZero33 = !0), plugin.acceptanceSession()?.state === "playing" && bigField().word >= 0), 12e3), chunk0Len33 = plugin.acceptanceSession()?.acceptanceChunk0Length ?? -1;
-    check(
-      "spec 0012 fast start: split chunk 0 is under 700 chars and playback reaches playing with word 0 painted",
-      reachedPlaying33 && sawWordZero33 && chunk0Len33 > 0 && chunk0Len33 < 700,
-      `chunk0Length=${chunk0Len33} (<700 expected), reachedPlaying=${reachedPlaying33}, sawWord0=${sawWordZero33}, word=${bigField().word}`
-    ), plugin.acceptanceDisposeSession(), plugin.acceptanceClearPosition(BIG_NOTE), plugin.acceptanceStartSession(bigCm, BIG_NOTE);
-    let started34 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && bigField().word >= 0,
-      12e3
-    ), clickable34 = bigField().words.filter((e) => e.runs.length > 0), far34 = clickable34[Math.floor(clickable34.length * 0.8)], t0_34 = performance.now();
-    plugin.acceptanceSession()?.seekToWord(far34.index);
-    let stateAfterSeek34 = plugin.acceptanceSession()?.state, painted34 = await waitUntil(() => bigField().word === far34.index, 200), paintMs34 = performance.now() - t0_34, preparing34 = stateAfterSeek34 === "preparing", arrived34 = await waitUntil(
-      () => plugin.acceptanceSession()?.state === "playing" && bigField().sentence === far34.sentence,
-      25e3
-    );
-    if (check(
-      "spec 0012 optimistic seek: a far-chunk click paints the word within 200ms (preparing), audio arrives there",
-      started34 && painted34 && preparing34 && arrived34,
-      `paintedWithin200ms=${painted34} (${paintMs34.toFixed(0)}ms), stateAfterSeek=${stateAfterSeek34}, arrivedAtSentence=${arrived34}, target word=${far34.index} sentence=${far34.sentence}, current word=${bigField().word}`
-    ), plugin.acceptanceDisposeSession(), hiddenMidRun()) {
-      lines.splice(2, 0, "RESULT: ABORTED MID-RUN", "", "The window went hidden during the control-surface checks; rAF-driven", "measurements are invalid. Keep the window visible and rerun."), await write();
-      return;
-    }
-    let allPass = checks.every((c) => c.pass), skipNote = skips.length ? `, ${skips.length} skipped (manual-pass coverage)` : "";
-    lines.splice(
-      2,
-      0,
-      `RESULT: ${allPass ? "ALL PASS" : "FAILURES PRESENT"} (${checks.filter((c) => c.pass).length}/${checks.length}${skipNote})`,
-      ""
-    ), await write();
-  } catch (e) {
-    lines.splice(2, 0, "RESULT: FAIL (unhandled)", "", String(e?.stack ?? e), "");
-    try {
-      await write();
-    } catch {
-    }
-  } finally {
-    plugin.acceptanceRunning = !1, banner.hide(), session?.dispose(), plugin.acceptanceDisposeSession();
-    try {
-      let snap = JSON.parse(settingsSnapshot);
-      plugin.settings.providerId = snap.providerId, plugin.settings.voiceByProvider = snap.voiceByProvider, plugin.settings.speed = snap.speed, plugin.settings.listeningMode = snap.listeningMode, plugin.settings.firstPlayTipShown = snap.firstPlayTipShown, plugin.settings.seekHintsShown = snap.seekHintsShown, plugin.acceptanceRestorePositions(positionsSnapshot), await plugin.saveSettings();
-    } catch {
-    }
+// src/shell/error-copy.ts
+function providerPhrase(providerId, providerLabel2) {
+  switch (providerId) {
+    case "edge":
+      return "The free Edge voice";
+    case "elevenlabs":
+      return "The ElevenLabs voice";
+    case "openai":
+      return "The OpenAI voice";
+    case "say":
+      return "The offline macOS voice";
+    default:
+      return `The ${providerLabel2} voice`;
   }
 }
-
-// src/shell/settings.ts
-var CACHE_SIZE_CHOICES = [50, 200, 500, 1e3], DEFAULT_SETTINGS = {
-  providerId: "edge",
-  voiceByProvider: {},
-  speed: 1,
-  listeningMode: !0,
-  cacheSizeMb: 200,
-  seekHintsShown: 0,
-  firstPlayTipShown: !1
-};
-function mergeSettings(saved) {
-  let s = saved ?? {};
-  return {
-    providerId: typeof s.providerId == "string" ? s.providerId : DEFAULT_SETTINGS.providerId,
-    voiceByProvider: s.voiceByProvider && typeof s.voiceByProvider == "object" ? { ...s.voiceByProvider } : {},
-    speed: typeof s.speed == "number" ? s.speed : DEFAULT_SETTINGS.speed,
-    listeningMode: typeof s.listeningMode == "boolean" ? s.listeningMode : DEFAULT_SETTINGS.listeningMode,
-    cacheSizeMb: CACHE_SIZE_CHOICES.includes(s.cacheSizeMb) ? s.cacheSizeMb : DEFAULT_SETTINGS.cacheSizeMb,
-    // A non-negative integer, else 0. Clamps a stray/negative payload so the gate
-    // stays sane; old payloads without the field default to 0 (hint still teaches).
-    seekHintsShown: typeof s.seekHintsShown == "number" && Number.isFinite(s.seekHintsShown) && s.seekHintsShown >= 0 ? Math.floor(s.seekHintsShown) : DEFAULT_SETTINGS.seekHintsShown,
-    firstPlayTipShown: typeof s.firstPlayTipShown == "boolean" ? s.firstPlayTipShown : DEFAULT_SETTINGS.firstPlayTipShown
-  };
+function mapProviderError(providerId, providerLabel2, platform, _error) {
+  let phrase = providerPhrase(providerId, providerLabel2);
+  return { sentence: providerId === "say" ? `${phrase} could not be started.` : `${phrase} could not be reached.`, action: platform === "darwin" && providerId !== "say" ? "offline-fallback" : "open-settings" };
 }
-function voiceForProvider(settings, providerId, providerDefaultVoice) {
-  return settings.voiceByProvider[providerId] ?? providerDefaultVoice;
-}
-function rememberVoice(settings, providerId, voice) {
-  return {
-    ...settings,
-    voiceByProvider: { ...settings.voiceByProvider, [providerId]: voice }
-  };
-}
-
-// src/shell/key-store.ts
-var KeyStore = class {
-  constructor(storage) {
-    this.storage = storage;
-  }
-  storage;
-  keyFor(providerId) {
-    return `speaking-editor:key:${providerId}`;
-  }
-  get(providerId) {
-    return this.storage.getItem(this.keyFor(providerId));
-  }
-  has(providerId) {
-    return this.get(providerId) !== null;
-  }
-  set(providerId, key) {
-    this.storage.setItem(this.keyFor(providerId), key);
-  }
-  clear(providerId) {
-    this.storage.removeItem(this.keyFor(providerId));
-  }
-};
 
 // src/shell/hint.ts
 var SEEK_HINT_TEXT = "Jumped here. That is listening mode; the ear turns it off.";
@@ -20302,8 +21047,8 @@ var VoiceCache = class {
 };
 
 // src/shell/settings-tab.ts
-var import_obsidian2 = require("obsidian");
-var SpeakingEditorSettingTab = class extends import_obsidian2.PluginSettingTab {
+var import_obsidian = require("obsidian");
+var SpeakingEditorSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -20313,14 +21058,14 @@ var SpeakingEditorSettingTab = class extends import_obsidian2.PluginSettingTab {
     let { containerEl } = this;
     containerEl.empty();
     let settings = this.plugin.settings, provider = buildProvider(settings.providerId, this.plugin.keyStore);
-    new import_obsidian2.Setting(containerEl).setName("Voice provider").setDesc("Where the spoken audio comes from. Edge is free and keeps words in exact sync.").addDropdown((dd) => {
+    new import_obsidian.Setting(containerEl).setName("Voice provider").setDesc("Where the spoken audio comes from. Edge is free and keeps words in exact sync.").addDropdown((dd) => {
       for (let p of availableProviders2()) dd.addOption(p.id, p.label);
       dd.setValue(settings.providerId), dd.onChange(async (id) => {
         await this.plugin.applyProvider(id), this.display();
       });
     });
     let currentVoice = voiceForProvider(settings, settings.providerId, provider.defaultVoice);
-    new import_obsidian2.Setting(containerEl).setName("Voice").setDesc("The specific voice to read in.").addDropdown((dd) => {
+    new import_obsidian.Setting(containerEl).setName("Voice").setDesc("The specific voice to read in.").addDropdown((dd) => {
       dd.addOption(currentVoice, currentVoice), dd.setValue(currentVoice), dd.onChange((voice) => {
         this.plugin.applyVoice(settings.providerId, voice);
       });
@@ -20331,17 +21076,17 @@ var SpeakingEditorSettingTab = class extends import_obsidian2.PluginSettingTab {
       };
       this.plugin.voiceCache.resolve(settings.providerId, () => provider.listVoices()).then(fill).catch(() => fill([{ id: provider.defaultVoice, label: provider.defaultVoice }]));
     });
-    let speedSetting = new import_obsidian2.Setting(containerEl).setName("Reading speed").setDesc(speedDesc(settings.speed));
+    let speedSetting = new import_obsidian.Setting(containerEl).setName("Reading speed").setDesc(speedDesc(settings.speed));
     if (speedSetting.addSlider((sl) => {
       sl.setLimits(0.5, 3, 0.1), sl.setValue(settings.speed), sl.setInstant(!0), sl.onChange((v) => {
         speedSetting.setDesc(speedDesc(v)), this.plugin.applySpeed(v);
       });
-    }), new import_obsidian2.Setting(containerEl).setName("Listening mode").setDesc("When on, clicking a word jumps the reading there. When off, clicking edits as normal.").addToggle((tg) => {
+    }), new import_obsidian.Setting(containerEl).setName("Listening mode").setDesc("When on, clicking a word jumps the reading there. When off, clicking edits as normal.").addToggle((tg) => {
       tg.setValue(settings.listeningMode), tg.onChange((on) => {
         this.plugin.applyListeningMode(on);
       });
     }), provider.requiresKey) {
-      let hasKey = this.plugin.keyStore.has(settings.providerId), keySetting = new import_obsidian2.Setting(containerEl).setName(`${provider.label} API key`).setDesc(
+      let hasKey = this.plugin.keyStore.has(settings.providerId), keySetting = new import_obsidian.Setting(containerEl).setName(`${provider.label} API key`).setDesc(
         hasKey ? "A key is saved on this device. Paste a new one to replace it." : "No key saved. Paste your key to use this provider. Keys stay on this device and are never synced."
       );
       keySetting.addText((tx) => {
@@ -20355,17 +21100,17 @@ var SpeakingEditorSettingTab = class extends import_obsidian2.PluginSettingTab {
         });
       });
     }
-    new import_obsidian2.Setting(containerEl).setName("Audio cache size").setDesc(
+    new import_obsidian.Setting(containerEl).setName("Audio cache size").setDesc(
       "Audio you have already listened to is kept so replaying is instant and free. It never lives inside your vault."
     ).addDropdown((dd) => {
       for (let mb of CACHE_SIZE_CHOICES) dd.addOption(String(mb), cacheSizeLabel(mb));
       dd.setValue(String(settings.cacheSizeMb)), dd.onChange((v) => {
         this.plugin.applyCacheSize(Number(v));
       });
-    }), new import_obsidian2.Setting(containerEl).setName("Where it is kept").setDesc(this.plugin.cacheLocation()), new import_obsidian2.Setting(containerEl).setName("Clear cache now").setDesc("Remove all saved audio. It is recreated as you listen again.").addButton((btn) => {
+    }), new import_obsidian.Setting(containerEl).setName("Where it is kept").setDesc(this.plugin.cacheLocation()), new import_obsidian.Setting(containerEl).setName("Clear cache now").setDesc("Remove all saved audio. It is recreated as you listen again.").addButton((btn) => {
       btn.setButtonText("Clear cache now").onClick(async () => {
         let freed = await this.plugin.clearCache();
-        new import_obsidian2.Notice(`Cleared ${formatBytes(freed)} of cached audio.`);
+        new import_obsidian.Notice(`Cleared ${formatBytes(freed)} of cached audio.`);
       });
     });
   }
@@ -20582,11 +21327,11 @@ async function openVoiceMenu(deps) {
 }
 
 // src/shell/cache-dir.ts
-var import_path4 = require("path"), APP = "speaking-editor";
+var import_path3 = require("path"), APP = "speaking-editor";
 function cacheDir(platform, env, home) {
-  if (platform === "darwin") return (0, import_path4.join)(home, "Library", "Caches", APP);
+  if (platform === "darwin") return (0, import_path3.join)(home, "Library", "Caches", APP);
   let xdg = env.XDG_CACHE_HOME;
-  return typeof xdg == "string" && xdg.trim().length > 0 ? (0, import_path4.join)(xdg, APP) : (0, import_path4.join)(home, ".cache", APP);
+  return typeof xdg == "string" && xdg.trim().length > 0 ? (0, import_path3.join)(xdg, APP) : (0, import_path3.join)(home, ".cache", APP);
 }
 
 // src/shell/remaining.ts
@@ -20695,7 +21440,7 @@ var WriteThrottle = class {
 };
 
 // src/shell/main.ts
-var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditorPlugin = class extends import_obsidian3.Plugin {
+var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditorPlugin = class extends import_obsidian2.Plugin {
   keyStore;
   voiceCache;
   session = null;
@@ -20738,7 +21483,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
       this.persist();
     }), this.registerEditorExtension([
       syncField,
-      import_view4.EditorView.updateListener.of((u) => this.onEditorUpdate(u))
+      import_view3.EditorView.updateListener.of((u) => this.onEditorUpdate(u))
     ]), this.ribbonEl = this.addRibbonIcon("play-circle", "Play or pause reading", () => this.playPause()), this.addCommand({
       id: "play-pause",
       name: "Play or pause reading",
@@ -20758,13 +21503,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
       callback: () => {
         this.toggleListeningMode();
       }
-    }), this.registerEvent(this.app.workspace.on("layout-change", () => this.checkModeFlip())), this.registerEvent(this.app.workspace.on("file-open", () => this.maybeWarmUp())), this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.maybeWarmUp())), this.addSettingTab(new SpeakingEditorSettingTab(this.app, this)), this.addCommand({
-      id: "run-acceptance-checks",
-      name: "Run acceptance checks",
-      callback: () => {
-        this.disposeSession(), runAcceptance(this.app, this);
-      }
-    });
+    }), this.registerEvent(this.app.workspace.on("layout-change", () => this.checkModeFlip())), this.registerEvent(this.app.workspace.on("file-open", () => this.maybeWarmUp())), this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.maybeWarmUp())), this.addSettingTab(new SpeakingEditorSettingTab(this.app, this));
   }
   onunload() {
     this.positionThrottle?.flush(), this.warmUpController?.abort(), this.disposeSession();
@@ -20782,7 +21521,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   // ─── Disk cache ──────────────────────────────────────────────────────────────
   // The resolved, per-device cache directory (never inside a vault).
   cacheLocation() {
-    return cacheDir(process.platform, process.env, (0, import_os3.homedir)());
+    return cacheDir(process.platform, process.env, (0, import_os2.homedir)());
   }
   // Rebuild the cache instance against the new size cap. New sessions use it;
   // any live session keeps the cache it was built with until it ends.
@@ -20795,13 +21534,13 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   async clearCache() {
     let dir = this.cacheLocation(), freed = 0;
     try {
-      let files = await import_fs4.promises.readdir(dir);
+      let files = await import_fs3.promises.readdir(dir);
       for (let f of files) {
         if (!f.endsWith(".bin") && !f.endsWith(".json")) continue;
-        let p = (0, import_path5.join)(dir, f);
+        let p = (0, import_path4.join)(dir, f);
         try {
-          let st = await import_fs4.promises.stat(p);
-          await import_fs4.promises.rm(p, { force: !0 }), freed += st.size;
+          let st = await import_fs3.promises.stat(p);
+          await import_fs3.promises.rm(p, { force: !0 }), freed += st.size;
         } catch {
         }
       }
@@ -20818,7 +21557,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   // "Read this note from the top": clear any saved position and start fresh at
   // word 0, restarting a live session on this note if there is one.
   readFromTop() {
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
     if (!view) return;
     let cm = view.editor.cm;
     cm && this.restartFromTop(cm, view.file?.path ?? "untitled");
@@ -20829,7 +21568,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
     this.sessionView = cm, this.sessionUri = uri, this.sessionMdView = ctx.view, this.sessionMode = ctx.mode, this.sessionReadingContainer = ctx.container, this.session = this.buildSession(cm, uri), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.ensureReturnChip(), this.session.playPause();
   }
   async toggleListeningMode() {
-    await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian3.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
+    await this.applyListeningMode(!this.settings.listeningMode), new import_obsidian2.Notice(`Listening mode ${this.settings.listeningMode ? "on" : "off"}`);
   }
   // ─── Live setting application (called by the settings tab and the pill) ────────
   // Persist the listening flag and reflect it in the pill's ear. The pill ear and
@@ -20892,7 +21631,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   }
   // Resolve the surface context for a session about to start on the active view.
   resolveSurfaceContext() {
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
     return view && this.modeOf(view) === "reading" ? { view, mode: "reading", container: this.readingContainerOf(view) } : { view, mode: "live", container: null };
   }
   // Bind the right click-to-seek surface for the mode, and remember where the pill
@@ -20905,14 +21644,14 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   }
   // Stop a running reading session when its view flips edit/preview mid-session.
   checkModeFlip() {
-    !this.session || !this.sessionMdView || this.modeOf(this.sessionMdView) !== this.sessionMode && (this.disposeSession(), new import_obsidian3.Notice("Reading stopped: the view changed"));
+    !this.session || !this.sessionMdView || this.modeOf(this.sessionMdView) !== this.sessionMode && (this.disposeSession(), new import_obsidian2.Notice("Reading stopped: the view changed"));
   }
   playPause() {
     if (this.acceptanceRunning) {
-      new import_obsidian3.Notice("Verification is running; playback controls return in a moment.");
+      new import_obsidian2.Notice("Verification is running; playback controls return in a moment.");
       return;
     }
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
     if (!view) return;
     let cm = view.editor.cm;
     if (cm) {
@@ -20932,7 +21671,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
       let model = parseDocument(cm.state.doc.toString(), uri, 1);
       primeAtWord = resolveSentenceStart(model, fresh.wordIndex);
     }
-    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.ensureReturnChip(), this.session.playPause(), primeAtWord != null && new import_obsidian3.Notice("Resumed where you left off"), this.settings.firstPlayTipShown || (this.settings.firstPlayTipShown = !0, this.saveSettings(), new import_obsidian3.Notice("Tip: click any word to jump the reading there."));
+    this.session = this.buildSession(cm, uri, primeAtWord), this.bindSeekSurface(cm, ctx.mode, ctx.container), this.setPillAnchor(cm, ctx.mode, ctx.container), this.ensurePill(), this.ensureReturnChip(), this.session.playPause(), primeAtWord != null && new import_obsidian2.Notice("Resumed where you left off"), this.settings.firstPlayTipShown || (this.settings.firstPlayTipShown = !0, this.saveSettings(), new import_obsidian2.Notice("Tip: click any word to jump the reading there."));
   }
   stopSession() {
     this.session && (this.session.stop(), this.positionThrottle.flush(), this.updateRibbon("idle"));
@@ -20972,7 +21711,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
     line.textContent = copy.sentence;
     let btn = frag.appendChild(document.createElement("button"));
     btn.type = "button", btn.className = "se-error-action", btn.textContent = copy.action === "offline-fallback" ? "Switch to the offline voice" : "Open settings";
-    let notice = new import_obsidian3.Notice(frag, 0);
+    let notice = new import_obsidian2.Notice(frag, 0);
     return btn.addEventListener("click", () => {
       notice.hide(), copy.action === "offline-fallback" ? this.applyProvider("say").then(() => this.session?.playPause()) : this.openSettingsTab();
     }), notice;
@@ -20993,7 +21732,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
         },
         onStop: () => this.stopSession()
       },
-      { renderIcon: (el, icon) => (0, import_obsidian3.setIcon)(el, icon) }
+      { renderIcon: (el, icon) => (0, import_obsidian2.setIcon)(el, icon) }
     ), this.pill.mount(anchor), this.pill.setState(this.session.state), this.pill.setSpeed(this.settings.speed), this.pill.setListening(this.settings.listeningMode), this.pill.setVoiceLabel(this.currentVoiceLabel()));
   }
   destroyPill() {
@@ -21027,7 +21766,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   // current speed checked, picks routed through applySpeed (persist + live audio
   // + label), plus a "Fine-tune in settings" escape hatch.
   showSpeedMenu(evt) {
-    let menu = new import_obsidian3.Menu();
+    let menu = new import_obsidian2.Menu();
     renderSpeedMenu(menu, speedMenuModel(this.settings.speed), {
       applySpeed: (speed) => {
         this.applySpeed(speed);
@@ -21057,7 +21796,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
         openSettings: () => this.openSettingsTab()
       },
       setVoiceLoading: (on) => this.pill?.setVoiceLoading(on),
-      buildMenu: () => new import_obsidian3.Menu(),
+      buildMenu: () => new import_obsidian2.Menu(),
       showMenu: (menu) => menu.showAtPosition({ x: evt.clientX, y: evt.clientY })
     });
   }
@@ -21080,7 +21819,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   updateRibbon(state) {
     if (!this.ribbonEl) return;
     let preparing = state === "preparing", icon = preparing ? "loader-2" : state === "playing" ? "pause" : state === "paused" ? "play" : "play-circle";
-    (0, import_obsidian3.setIcon)(this.ribbonEl, icon), this.ribbonEl.classList.toggle("se-preparing-pulse", preparing);
+    (0, import_obsidian2.setIcon)(this.ribbonEl, icon), this.ribbonEl.classList.toggle("se-preparing-pulse", preparing);
   }
   // ─── Warm start (spec 0010 point 4) ──────────────────────────────────────────
   // A reading session is mid-listen (playing, preparing, or paused). Ended, idle,
@@ -21094,7 +21833,7 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   // gate passes; the effectful guardrails (cache miss, single-flight) live in the
   // warm-up itself.
   maybeWarmUp() {
-    let view = this.app.workspace.getActiveViewOfType(import_obsidian3.MarkdownView);
+    let view = this.app.workspace.getActiveViewOfType(import_obsidian2.MarkdownView);
     if (!view) return;
     let cm = view.editor.cm;
     cm && this.maybeWarmUpFor(cm, view.file?.path ?? "untitled");
@@ -21210,35 +21949,3 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
     return this.sessionReadingContainer;
   }
 };
-/*! Bundled license information:
-
-mime-db/index.js:
-  (*!
-   * mime-db
-   * Copyright(c) 2014 Jonathan Ong
-   * Copyright(c) 2015-2022 Douglas Christopher Wilson
-   * MIT Licensed
-   *)
-
-mime-types/index.js:
-  (*!
-   * mime-types
-   * Copyright(c) 2014 Jonathan Ong
-   * Copyright(c) 2015 Douglas Christopher Wilson
-   * MIT Licensed
-   *)
-
-axios/dist/node/axios.cjs:
-  (*! Axios v1.18.1 Copyright (c) 2026 Matt Zabriskie and contributors *)
-
-ieee754/index.js:
-  (*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> *)
-
-buffer/index.js:
-  (*!
-   * The buffer module from node.js, for the browser.
-   *
-   * @author   Feross Aboukhadijeh <https://feross.org>
-   * @license  MIT
-   *)
-*/

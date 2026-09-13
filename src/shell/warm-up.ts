@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Rishabh Madaan
+// AGPL-3.0-only with the additional permission in LICENSE-EXCEPTION.md.
+// See LICENSE and LICENSE-NOTICE.md.
+
 // Warm start for the free voice (spec 0010 point 4). When the active note changes
 // and every guardrail passes, quietly synthesize chunk 0 into the SAME disk cache
 // sessions use, so a later play starts near-instantly. It is INVISIBLE: no audio
