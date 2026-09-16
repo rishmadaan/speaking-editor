@@ -16,6 +16,11 @@ const FALLBACK_VOICES: VoiceInfo[] = [
   { id: "en-AU-NatashaNeural", label: "Natasha (AU)" },
 ];
 
+// msedge-tts drops text into SSML unescaped; a raw & or < makes the XML invalid
+// and Edge closes the socket with no audio (spec 0015). Boundaries come back escaped.
+const escapeXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const unescapeXml = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+
 export class EdgeProvider implements TtsProvider {
   readonly id = "edge";
   readonly label = "Edge TTS (free)";
@@ -47,7 +52,7 @@ export class EdgeProvider implements TtsProvider {
     });
 
     // toStream is synchronous in msedge-tts >=2.x and returns the streams object.
-    const { audioStream, metadataStream } = tts.toStream(chunk.text);
+    const { audioStream, metadataStream } = tts.toStream(escapeXml(chunk.text));
 
     const audioParts: Buffer[] = [];
     const boundaries: EdgeBoundary[] = [];
@@ -89,7 +94,7 @@ export class EdgeProvider implements TtsProvider {
           for (const m of parsed.Metadata ?? []) {
             if (m.Type === "WordBoundary") {
               boundaries.push({
-                text: m.Data?.text?.Text ?? "",
+                text: unescapeXml(m.Data?.text?.Text ?? ""),
                 offsetTicks: m.Data?.Offset ?? 0,
                 durationTicks: m.Data?.Duration ?? 0,
               });

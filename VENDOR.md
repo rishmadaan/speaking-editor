@@ -30,6 +30,12 @@ Obsidian additional permission; there is no unconditional MIT extraction promise
   `@talktomebaby/engine/core` to the relative `../engine/core`. No logic
   changes.
 
+## Divergences since vendoring
+
+- `src/engine/synthesis/edge.ts` (2026-09-16, spec 0015): escapes `&`, `<`, `>`
+  before sending text to Edge and unescapes word-boundary text. Without it a
+  note containing `&` or `<` got no audio. The parent likely has the same bug.
+
 ## Left behind, deliberately (per the reuse map)
 
 The VS Code host-to-webview message protocol, the pause-and-prompt answer to
