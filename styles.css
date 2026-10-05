@@ -251,3 +251,20 @@
 .se-pill-ear-active .se-pill-ear-label {
   color: var(--interactive-accent);
 }
+
+/* Error notice close button (spec 0016). */
+.se-error-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.se-error-head > span {
+  flex: 1;
+}
+
+.se-error-close {
+  flex: none;
+  margin: -4px -6px 0 0;
+  padding: 2px;
+}

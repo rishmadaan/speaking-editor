@@ -19965,7 +19965,7 @@ var FALLBACK_VOICES = [
   { id: "en-GB-SoniaNeural", label: "Sonia (UK)" },
   { id: "en-IN-NeerjaNeural", label: "Neerja (IN)" },
   { id: "en-AU-NatashaNeural", label: "Natasha (AU)" }
-], EdgeProvider = class {
+], escapeXml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"), unescapeXml = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"), EdgeProvider = class {
   id = "edge";
   label = "Edge TTS (free)";
   requiresKey = !1;
@@ -19987,7 +19987,7 @@ var FALLBACK_VOICES = [
       wordBoundaryEnabled: !0,
       sentenceBoundaryEnabled: !1
     });
-    let { audioStream, metadataStream } = tts.toStream(chunk.text), audioParts = [], boundaries = [];
+    let { audioStream, metadataStream } = tts.toStream(escapeXml(chunk.text)), audioParts = [], boundaries = [];
     return new Promise((resolve, reject) => {
       let settled = !1, cleanup = () => {
         signal.removeEventListener("abort", onAbort);
@@ -20013,7 +20013,7 @@ var FALLBACK_VOICES = [
           let parsed = JSON.parse(d.toString("utf8"));
           for (let m of parsed.Metadata ?? [])
             m.Type === "WordBoundary" && boundaries.push({
-              text: m.Data?.text?.Text ?? "",
+              text: unescapeXml(m.Data?.text?.Text ?? ""),
               offsetTicks: m.Data?.Offset ?? 0,
               durationTicks: m.Data?.Duration ?? 0
             });
@@ -21707,12 +21707,16 @@ var POSITION_WRITE_INTERVAL_MS = 5e3, EDITED_DIRTY_THRESHOLD = 3, SpeakingEditor
   // The raw exception goes to the console for debuggability, never to the user.
   showSessionError(rawMessage) {
     rawMessage && console.error("[Speaking Editor] synthesis failed:", rawMessage);
-    let providerId = this.settings.providerId, copy = mapProviderError(providerId, providerLabel(providerId), process.platform, rawMessage), frag = document.createDocumentFragment(), line = frag.appendChild(document.createElement("div"));
-    line.textContent = copy.sentence;
+    let providerId = this.settings.providerId, copy = mapProviderError(providerId, providerLabel(providerId), process.platform, rawMessage), frag = document.createDocumentFragment(), head = frag.appendChild(document.createElement("div"));
+    head.className = "se-error-head", head.appendChild(document.createElement("span")).textContent = copy.sentence;
+    let close = head.appendChild(document.createElement("button"));
+    close.type = "button", close.className = "se-error-close clickable-icon", close.setAttribute("aria-label", "Dismiss"), (0, import_obsidian2.setIcon)(close, "x");
     let btn = frag.appendChild(document.createElement("button"));
     btn.type = "button", btn.className = "se-error-action", btn.textContent = copy.action === "offline-fallback" ? "Switch to the offline voice" : "Open settings";
     let notice = new import_obsidian2.Notice(frag, 0);
-    return btn.addEventListener("click", () => {
+    return close.addEventListener("click", (evt) => {
+      evt.stopPropagation(), notice.hide();
+    }), btn.addEventListener("click", () => {
       notice.hide(), copy.action === "offline-fallback" ? this.applyProvider("say").then(() => this.session?.playPause()) : this.openSettingsTab();
     }), notice;
   }

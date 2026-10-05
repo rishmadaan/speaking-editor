@@ -559,8 +559,16 @@ export default class SpeakingEditorPlugin extends Plugin {
     const copy = mapProviderError(providerId, providerLabel(providerId), process.platform, rawMessage);
 
     const frag = document.createDocumentFragment();
-    const line = frag.appendChild(document.createElement("div"));
-    line.textContent = copy.sentence;
+    const head = frag.appendChild(document.createElement("div"));
+    head.className = "se-error-head";
+    head.appendChild(document.createElement("span")).textContent = copy.sentence;
+    // Visible close (spec 0016): Obsidian dismisses a notice on any click, but
+    // nothing on screen said so.
+    const close = head.appendChild(document.createElement("button"));
+    close.type = "button";
+    close.className = "se-error-close clickable-icon";
+    close.setAttribute("aria-label", "Dismiss");
+    setIcon(close, "x");
     const btn = frag.appendChild(document.createElement("button"));
     btn.type = "button";
     btn.className = "se-error-action";
@@ -568,6 +576,10 @@ export default class SpeakingEditorPlugin extends Plugin {
 
     // timeout 0 keeps it up until the user acts or dismisses it.
     const notice = new Notice(frag, 0);
+    close.addEventListener("click", (evt) => {
+      evt.stopPropagation();
+      notice.hide();
+    });
     btn.addEventListener("click", () => {
       notice.hide();
       if (copy.action === "offline-fallback") {
